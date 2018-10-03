@@ -140,6 +140,7 @@ def lf_empirical_accuracies(L, Y):
 
 def lf_summary(L, Y=None, lf_names=None, est_accs=None):
     """Returns a pandas DataFrame with the various per-LF statistics.
+    
     Args:
         L: an n x m scipy.sparse matrix where L_{i,j} is the label given by the
             jth LF to the ith candidate
