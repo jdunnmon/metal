@@ -314,6 +314,7 @@ def error_buckets(gold, pred, X=None):
         gold: an array-like of gold labels (ints)
         pred: an array-like of predictions (ints)
         X: an iterable of items
+    
     Returns:
         buckets: A dict of items where buckets[i,j] is a list of items with
             true label i and predicted label j. If X is None, return indices
