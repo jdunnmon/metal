@@ -140,7 +140,6 @@ def lf_empirical_accuracies(L, Y):
 
 def lf_summary(L, Y=None, lf_names=None, est_accs=None):
     """Returns a pandas DataFrame with the various per-LF statistics.
-
     Args:
         L: an n x m scipy.sparse matrix where L_{i,j} is the label given by the
             jth LF to the ith candidate
@@ -317,7 +316,7 @@ def error_buckets(gold, pred, X=None):
         X: an iterable of items
     Returns:
         buckets: A dict of items where buckets[i,j] is a list of items with
-            predicted label i and true label j. If X is None, return indices
+            true label i and predicted label j. If X is None, return indices
             instead.
 
     For a binary problem with (1=positive, 2=negative):
