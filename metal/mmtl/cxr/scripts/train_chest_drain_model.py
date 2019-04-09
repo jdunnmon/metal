@@ -9,6 +9,7 @@ import torch
 from torch.utils.data import DataLoader
 import torchvision.models as models
 import shutil
+import pickle
 
 from metal.end_model import EndModel
 from metal.tuners import RandomSearchTuner
@@ -122,6 +123,12 @@ def train_model():
             module_args=module_args, module_kwargs=module_kwargs,
             max_search=max_search, clean_up=True)
 
+    # Saving model and dataloaders
+    print("Saving model and dataloaders...")
+    end_model.save(os.path.join(searcher.log_subdir,"best_model.pkl"))
+    with open(os.path.join(searcher.log_subdir,"dataloaders.pkl"),'wb') as fl:
+        pickle.dump(dataloaders,fl)
+
     # Moving config over
     shutil.copy(f"{args.config}.py", searcher.log_subdir)
  
@@ -131,7 +138,6 @@ def train_model():
     
     print("EVALUATING ON TEST SET...")
     end_model.score(test_loader, metric=['accuracy', 'precision', 'recall', 'f1','roc-auc'])
-
 
 if __name__ == "__main__":
     train_model()

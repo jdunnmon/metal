@@ -514,12 +514,13 @@ class MultitaskTrainer(object):
 
     def _set_writer(self):
         writer_config = self.config["writer_config"]
-        writer_config["verbose"] = self.config["verbose"]
+        #writer_config["verbose"] = self.config["verbose"]
         if self.config["writer"] is None:
             self.writer = None
         elif self.config["writer"] == "json":
             self.writer = LogWriter(**writer_config)
         elif self.config["writer"] == "tensorboard":
+            import ipdb; ipdb.set_trace()
             self.writer = TensorBoardWriter(**writer_config)
         else:
             raise Exception(f"Unrecognized writer: {self.config['writer']}")

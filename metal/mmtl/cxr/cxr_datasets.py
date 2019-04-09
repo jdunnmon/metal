@@ -88,10 +88,11 @@ class CXR8Dataset(Dataset):
             "Hernia",
         ]
 
+        classes = self.PRED_LABEL
         if slice_labels is not None:
             if isinstance(slice_labels,str):
                 slice_labels = [slice_labels]
-            classes = self.PRED_LABEL + slice_labels
+            classes = classes + slice_labels
 
         # Adding tasks and labels -- right now, we train all labels associated with
         # a given task!

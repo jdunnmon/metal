@@ -1,18 +1,20 @@
 writer_config = {
         'log_dir' : './slice_run_logs/CXR8-DRAIN',
-        'run_name' : 'hp_search_1',
+        'run_name' : 'test_regression',
         #'include_config': True,
         }
 
 tuner_config = {
-        'max_search': 15,
+        'max_search': 1,
         'seed':123,
         'include_config':True,
 }
 
 search_space = {
-        'l2': {'range': [0.000001, 0.001], 'scale':'log'},           # linear range
-        'lr': {'range': [0.0001, 0.01], 'scale': 'log'},  # log range
+        #'l2': {'range': [0.000001, 0.001], 'scale':'log'},           # linear range
+        #'lr': {'range': [0.0001, 0.01], 'scale': 'log'},  # log range
+         'l2': [1.826899859912767e-05],
+         'lr': [0.0003294833709327656]
         }
 
 em_config = {
