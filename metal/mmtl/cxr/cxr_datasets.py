@@ -31,6 +31,8 @@ class CXR8Dataset(Dataset):
         finding="ALL",
         pooled=False,
         get_uid=False,
+        slice_labels=None,
+        single_task=None,
     ):
 
         self.transform = transform
@@ -41,6 +43,7 @@ class CXR8Dataset(Dataset):
         self.get_uid = get_uid
         self.labels = {}
         self.pooled = pooled
+        self.single_task = single_task
 
         # can limit to sample, useful for testing
         # if fold == "train" or fold =="val": sample=500
@@ -85,9 +88,14 @@ class CXR8Dataset(Dataset):
             "Hernia",
         ]
 
+        if slice_labels is not None:
+            if isinstance(slice_labels,str):
+                slice_labels = [slice_labels]
+            classes = self.PRED_LABEL + slice_labels
+
         # Adding tasks and labels -- right now, we train all labels associated with
         # a given task!
-        for cls in self.PRED_LABEL:
+        for cls in classes:
             label_vec = self.df[cls.upper().strip()].astype("int") > 0
             # Converting to metal format: 0 abstain, 2 negative
             label_vec[label_vec==0] = 2
@@ -95,6 +103,7 @@ class CXR8Dataset(Dataset):
                 self.labels[cls.upper()] = np.array(label_vec).astype(int) 
             else:
                 self.labels[f"CXR8:{cls.upper()}"] = np.array(label_vec).astype(int)
+
 
     def __getitem__(self, idx):
 
@@ -105,9 +114,15 @@ class CXR8Dataset(Dataset):
             image = self.transform(image)
 
         x = image
-        ys = {
-            task_name: label_set[idx] for task_name, label_set in self.labels.items() 
-        }
+
+        # If statement to train classifiers for single tasks outside mmtl
+        if self.single_task is not None:
+            ky = f"CXR8:{self.single_task.upper()}" if not self.pooled else self.single_task.upper()
+            ys = self.labels[ky][idx]
+        else:
+            ys = {
+                task_name: label_set[idx] for task_name, label_set in self.labels.items() 
+            }
 
         if self.get_uid:
             return x, ys, uid
