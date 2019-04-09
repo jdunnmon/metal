@@ -40,6 +40,7 @@ class ModelTuner(object):
         log_dir=None,
         run_dir=None,
         run_name=None,
+        include_config=None,
         log_writer_class=None,
         seed=None,
         validation_metric="accuracy",
@@ -48,6 +49,7 @@ class ModelTuner(object):
         self.module_classes = module_classes
         self.log_writer_class = log_writer_class
         self.validation_metric = validation_metric
+        self.include_config=include_config
 
         # Set logging subdirectory + make sure exists
         self.init_date = strftime("%Y_%m_%d")
@@ -150,6 +152,7 @@ class ModelTuner(object):
                 "log_dir": self.log_subdir,
                 "run_dir": ".",
                 "run_name": f"model_search_{idx}",
+                "include_config": self.include_config,
             }
             log_writer = self.log_writer_class(**writer_config)
 

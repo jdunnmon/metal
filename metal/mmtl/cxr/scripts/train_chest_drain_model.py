@@ -89,8 +89,8 @@ def train_model():
 
     # Initializing logger to get log config
     log_writer_class = TensorBoardWriter
-#    log_writer_dup = log_writer_class(**writer_config)
-#    em_config['train_config']['checkpoint_config']['checkpoint_dir'] = os.path.join(log_writer_dup.log_subdir,'checkpoints')
+    #log_writer_dup = log_writer_class(**writer_config)
+    #em_config['train_config']['checkpoint_config']['checkpoint_dir'] = os.path.join(log_writer_dup.log_dir,'checkpoints')
 
     # Initializing searcher
     searcher = RandomSearchTuner(
@@ -100,6 +100,9 @@ def train_model():
         **writer_config,
         validation_metric = metric,
     )
+
+    em_config['train_config']['checkpoint_config']['checkpoint_dir'] = os.path.join(searcher.log_subdir,'checkpoints')    
+
 
     init_kwargs = {'layer_out_dims':[encode_dim, num_classes]}
     init_kwargs.update(em_config)
