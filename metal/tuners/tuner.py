@@ -40,7 +40,7 @@ class ModelTuner(object):
         log_dir=None,
         run_dir=None,
         run_name=None,
-        include_config=None,
+        include_config=True,
         log_writer_class=None,
         seed=None,
         validation_metric="accuracy",

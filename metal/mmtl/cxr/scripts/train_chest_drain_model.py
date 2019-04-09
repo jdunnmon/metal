@@ -8,6 +8,7 @@ import importlib
 import torch
 from torch.utils.data import DataLoader
 import torchvision.models as models
+import shutil
 
 from metal.end_model import EndModel
 from metal.tuners import RandomSearchTuner
@@ -89,8 +90,6 @@ def train_model():
 
     # Initializing logger to get log config
     log_writer_class = TensorBoardWriter
-    #log_writer_dup = log_writer_class(**writer_config)
-    #em_config['train_config']['checkpoint_config']['checkpoint_dir'] = os.path.join(log_writer_dup.log_dir,'checkpoints')
 
     # Initializing searcher
     searcher = RandomSearchTuner(
@@ -103,7 +102,7 @@ def train_model():
 
     em_config['train_config']['checkpoint_config']['checkpoint_dir'] = os.path.join(searcher.log_subdir,'checkpoints')    
 
-
+   
     init_kwargs = {'layer_out_dims':[encode_dim, num_classes]}
     init_kwargs.update(em_config)
     max_search = tuner_config['max_search']
@@ -123,6 +122,9 @@ def train_model():
             module_args=module_args, module_kwargs=module_kwargs,
             max_search=max_search, clean_up=True)
 
+    # Moving config over
+    shutil.copy(f"{args.config}.py", searcher.log_subdir)
+ 
     # Evaluating model
     print("EVALUATING ON DEV SET...")
     end_model.score(val_loader, metric=['accuracy', 'precision', 'recall', 'f1','roc-auc'])
