@@ -14,5 +14,6 @@ class MetalModuleWrapper(nn.Module):
         self.module = module
 
     def forward(self, X):
-        X["data"] = self.module(X["data"])
-        return X
+        X_out = {k:v for k,v in X.items()}
+        X_out["data"] = self.module(X_out["data"])
+        return X_out

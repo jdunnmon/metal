@@ -19,16 +19,16 @@ torch.multiprocessing.set_sharing_strategy('file_system')
 #from metal.mmtl.auxiliary_tasks import SPACY_TAGS, auxiliary_task_functions
 #from metal.mmtl.chexnet.chexnet_metrics import acc_f1, matthews_corr, mse, pearson_spearman
 from metal.mmtl.cxr.cxr_slices import create_slice_labels
-from metal.mmtl.modules import (
+from metal.mmtl.cxr.cxr_modules import (
     BinaryHead,
     RegressionHead,
     SoftAttentionModule,
+    TorchVisionEncoder
 )
 from metal.end_model import IdentityModule
-from metal.mmtl.cxr.modules import TorchVisionEncoder
 from metal.mmtl.payload import Payload
 from metal.mmtl.scorer import Scorer
-from metal.mmtl.slicing import create_slice_task
+from metal.mmtl.slicing.slicing import create_slice_task
 from metal.mmtl.task import ClassificationTask, RegressionTask
 from metal.utils import recursive_merge_dicts, set_seed
 from metal.mmtl.cxr.cxr_datasets import get_cxr_dataset
@@ -263,7 +263,7 @@ def create_tasks_and_payloads(full_task_names, **kwargs):
             if new_payload:
                 data_loader = data_loaders[split]
                 payload_name_split = f"{payload_name}_{split}"
-                payload = Payload(payload_name_split, data_loader, [task_name], split)
+                payload = Payload(payload_name_split, data_loader, {task_name:task_name}, split)
                 # Add auxiliary label sets if applicable
                 #CXR: NOT TESTED
                 for aux_task_name, target_payloads in auxiliary_task_dict.items():
@@ -279,7 +279,7 @@ def create_tasks_and_payloads(full_task_names, **kwargs):
                 payload = payloads[payload_names.index(payload_name_split)] 
            
                 # Add task name to payload -- assumes label set already there
-                payload.task_names.append(task_name)
+                payload.labels_to_tasks[task_name] = task_name
                 assert(task_name in payload.data_loader.dataset.labels.keys())
 
             # Add slice task and label sets if applicable
@@ -300,7 +300,13 @@ def create_tasks_and_payloads(full_task_names, **kwargs):
                     slice_labels = create_slice_labels(
                         dataset, base_task_name=task_name, slice_name=slice_name
                         )
-                    payload.add_label_set(slice_task_name, slice_labels)
+                    slice_labels = torch.Tensor(slice_labels)
+                    if slice_labels.dim()<2:
+                        slice_labels = slice_labels[:,None]
+
+                    labelset_slice_name=f"{task_name}:{slice_name}"
+                    payload.add_label_set(slice_task_name, labelset_slice_name, 
+                        label_list = slice_labels)
 
     return tasks, payloads
 
