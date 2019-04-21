@@ -215,9 +215,10 @@ def create_tasks_and_payloads(full_task_names, **kwargs):
 
         # TODO: PUT IN OPTION TO POOL SAME TASK FOR DIFF SETS HERE?
 
+        task_metrics = ["f1", "roc-auc"]
         if "PNEUMOTHORAX" in task_name:
             scorer = Scorer(
-            standard_metrics=["f1","roc-auc"],
+            standard_metrics=task_metrics,
             )
             task = ClassificationTask(
                 name=task_name,
@@ -233,7 +234,7 @@ def create_tasks_and_payloads(full_task_names, **kwargs):
         
         else:
             scorer = Scorer(
-                standard_metrics=["f1", "roc-auc"],
+                standard_metrics=task_metrics,
             )   
             task = ClassificationTask(
                 name=task_name,
@@ -290,148 +291,28 @@ def create_tasks_and_payloads(full_task_names, **kwargs):
                 else []
                     )
 
-            if slice_names and config["use_slices"]:
-                dataset = payload.data_loader.dataset
+            if slice_names:
                 for slice_name in slice_names:
-                    slice_task_name = f"{task_name}:{slice_name}"
-                    slice_task = create_slice_task(task, slice_task_name)
-                    tasks.append(slice_task)
-
-                    slice_labels = create_slice_labels(
-                        dataset, base_task_name=task_name, slice_name=slice_name
-                        )
-                    slice_labels = torch.Tensor(slice_labels)
-                    if slice_labels.dim()<2:
-                        slice_labels = slice_labels[:,None]
-
-                    labelset_slice_name=f"{task_name}:{slice_name}"
-                    payload.add_label_set(slice_task_name, labelset_slice_name, 
-                        label_list = slice_labels)
+                    if config['use_slices']:
+                        slice_task_name = f"{task_name}:{slice_name}"
+                        slice_task = create_slice_task(task, slice_task_name)
+                        tasks.append(slice_task)
+                        add_slice_labels(payload, dataset, task_name, slice_name)
 
     return tasks, payloads
 
+def add_slice_labels(pay, task_nm, slice_nm):
+    datast = pay.data_loader.dataset
+    slice_labels = create_slice_labels(
+                        datast, base_task_name=task_nm, slice_name=slice_nm
+                        )
+    slice_labels = torch.Tensor(slice_labels)
+    if slice_labels.dim()<2:
+        slice_labels = slice_labels[:,None]
 
-
-########### STOP HERE ##############
-
-
-
-
-    # Initialize payloads with data for any primary tasks they have
-    # If pooling option is True, use standard task names across
-    # datasets and pool them, otherwise use payload-specific name
-
-    #for payload_name in task_payload_dict.keys():
-       # datasets = create_cxr_datasets(
-       #     dataset_name=payload_name,
-       #     splits=config["splits"],
-       #     subsample=config["subsample"],
-       #     tasks=task_payload_dict[payload_name],
-       #     pooled=config["pool_payload_tasks"],
-       #     verbose=True,
-       #     )
-
-            # Wrap datasets with DataLoader objects
-     #   data_loaders = create_cxr_dataloaders(
-     #       datasets,
-     #       dl_kwargs=dl_kwargs,
-     #       split_prop=config["split_prop"],
-     #       splits=config["splits"],
-     #       seed=config["seed"],
-     #       )
-
-        # Create payloads with primary task names
-      #  for split, data_loader in data_loaders.items():
-      #      payload_name = f"{task_name}_{split}"
-      #      payload = Payload(payload_name, data_loader, 
-      #          task_payload_dict[payload_name], split)
-      #      payloads.append(payload)
-
-    # Getting primary task names
-   # if config["pool_payload_tasks"]:
-   #     task_names = list(set([t.split(":")[1] for in full_task_names]))
-   # else:
-   #     task_names = full_task_names
-    
-    # Adding primary tasks
-    #for task_name in task_names:
-        # Pull out names of auxiliary tasks to be dealt with in a second step
-        # TODO: fix this logic for cases where auxiliary task for task_name has
-        # its own payload
-        # Right now, supply tasks as DATASET:TASK, by default if all tasks
-        
-        # Override general dl kwargs with payload-specific kwargs
-     #   dl_kwargs = copy.deepcopy(config["dl_kwargs"])
-     #   if task_name in task_dl_kwargs:
-     #       dl_kwargs.update(task_dl_kwargs[task_name])
-
-     #   if "PNEUMOTHORAX" in task_name:
-     #       scorer = Scorer(
-     #       standard_metrics=["accuracy"],
-     #       )
-     #       task = ClassificationTask(
-     #           name=task_name,
-     #           input_module=input_module,
-     #           middle_module=middle_module,
-     #           attention_module=get_attention_module(config, neck_dim),
-     #           head_module=BinaryHead(neck_dim),
-     #           scorer=scorer,
-     #       )
-     #   else:   
-     #       scorer = Scorer(
-     #           standard_metrics=["accuracy"],
-     #       )
-     #       task = ClassificationTask(
-     #           name=task_name,
-     #           input_module=input_module,
-     #           middle_module=middle_module,
-     #           attention_module=get_attention_module(config, neck_dim),
-     #           head_module=BinaryHead(neck_dim),
-     #           scorer=scorer,
-     #       )    
-
-        # AUXILIARY TASKS
-
-        # NONE YET -- MAYBE AUTOENCODING?
-
-        #else:
-        #    msg = (
-        #        f"Task name {task_name} was not recognized as a primary or "
-        #        f"auxiliary task."
-        #    )
-        #    raise Exception(msg)
-
-      #  tasks.append(task)
-        
-        # Add auxiliary label sets if applicable
-        
-      #  if [target_task in auxiliary_task_dict[ 
-      #  for aux_task_name, target_task in auxiliary_task_dict.items():
-      #      if aux_task_name in task_names and task_name in target_payloads:
-      #          aux_task_func = auxiliary_task_functions[aux_task_name]
-      #          payload = aux_task_func(payload)
-            
-        # Add slice task and label sets if applicable
-      #  slice_names = (
-      #      config["slice_dict"].get(task_name, [])
-      #      if config["slice_dict"]
-      #      else []
-      #  )
-            
-      #  if slice_names:
-      #      dataset = payload.data_loader.dataset
-      #      for slice_name in slice_names:
-      #          slice_task_name = f"{task_name}:{slice_name}"
-      #          slice_task = create_slice_task(task, slice_task_name)
-      #          tasks.append(slice_task)
-              
-      #          slice_labels = create_slice_labels(
-      #              dataset, base_task_name=task_name, slice_name=slice_name
-      #          )
-      #          payload.add_label_set(slice_task_name, slice_labels)
-
-  #  return tasks, payloads
-
+    labelset_slice_name=f"{task_nm}:{slice_nm}"
+    pay.add_label_set(labelset_slice_name, labelset_slice_name,
+                        label_list = slice_labels)
 
 def get_attention_module(config, neck_dim):
     # Get attention head

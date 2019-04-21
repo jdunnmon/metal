@@ -4,10 +4,10 @@ import torch
 from torch.utils.data import Dataset
 
 def chest_drain_cnn_neg(dataset: Dataset) -> dict:
-    data_file = os.path.join(os.environ["CXRDATA"],'CXR8-DRAIN-SLICE-POS',f"{dataset.split}.tsv")
+    data_file = os.path.join(os.environ["CXRDATA"],'CXR8-DRAIN-SLICE-NEG',f"{dataset.split}.tsv")
     slice_data = pd.read_csv(data_file, sep='\t')
     keys = slice_data['data_index'].tolist()
-    values = [int(not l) for l in slice_data['slice_label'].astype(int)]
+    values = [int(l) for l in slice_data['slice_label'].astype(int)]
     slice_dict = dict(zip(keys, values))
     return slice_dict
 

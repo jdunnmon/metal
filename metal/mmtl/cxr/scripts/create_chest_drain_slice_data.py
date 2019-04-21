@@ -35,15 +35,15 @@ if __name__ == "__main__":
 
     # Identifying drains
     drains = pneumo_subset[pneumo_subset['drain']==1]
-    
+    no_drains = pneumo_subset[pneumo_subset['drain']==0]
+ 
     # Getting pneumos from dev set
     df_dev = copy.deepcopy(dfs["dev"])
     dev_pneumos = df_dev[df_dev["Pneumothorax"]==1]
    
     # Getting drains in dev set
     dev_drains = dev_pneumos[dev_pneumos["Image Index"].isin(drains["Image Index"])]
-    dev_no_drains = dev_pneumos[~dev_pneumos["Image Index"].isin(drains["Image Index"])]
-    dev_no_drains_subset = dev_no_drains.sample(min(len(dev_no_drains),len(dev_drains)))
+    dev_no_drains_subset = dev_pneumos[dev_pneumos["Image Index"].isin(no_drains["Image Index"])]
 
     # Adding drain label
     dev_drains["drain"] = 1

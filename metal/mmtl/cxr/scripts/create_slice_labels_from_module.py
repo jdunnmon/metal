@@ -20,8 +20,6 @@ if __name__ == "__main__":
                    type=str, help='name of dataset' )
     parser.add_argument('--slice_module_path','-smp', type=str,
                    help='path to saved slice module')
-    parser.add_argument('--slice_name', '-sn', type=str,
-                   required=True, help='name of slice')
     parser.add_argument('--metal_model', '-mm', type=int, required=True,
                    help='use metal label convention if true')
     parser.add_argument('--slice_label', '-sl', type=int, required=True,
@@ -32,7 +30,8 @@ if __name__ == "__main__":
                    help='use metal label convention if true')
     parser.add_argument('--base_task', '-bt', type=str, required=True,
                    help='baseline task to use for slice')
-   
+    parser.add_argument('--splits', '-sp', type=str, required=True,
+                   help='comma separated list')
     args = parser.parse_args()
 
     # Hard-coding resolution for now
@@ -46,7 +45,7 @@ if __name__ == "__main__":
     use_cuda = torch.cuda.is_available()
 
     # Getting slice labels on all subsets
-    splits = ["train", "test"]
+    splits = args.splits.split(',')
 
     logger.info(f"Getting datasets and dataloaders...")
     # Getting all datasets
@@ -64,7 +63,7 @@ if __name__ == "__main__":
     # Wrap datasets with DataLoader objects
     data_loaders = create_cxr_dataloaders(
             datasets,
-            dl_kwargs={'num_workers':0, 'batch_size':16},
+            dl_kwargs={'num_workers':8, 'batch_size':16},
             split_prop=None,
             splits=splits,
             seed=123,
@@ -114,6 +113,7 @@ if __name__ == "__main__":
                          'slice_label' : list(slice_label_dict.values())
                         })
 
+        
         slice_df.to_csv(f"{args.save_dir}/{split}.tsv",sep='\t',index=False)
 
     logger.info("Slice data saved")

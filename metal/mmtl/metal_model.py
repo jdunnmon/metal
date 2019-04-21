@@ -104,19 +104,20 @@ class MetalModel(nn.Module):
         input = move_to_device(X, self.config["device"])
         outputs = {}
         for task_name in task_names:
-            # Extra .module because of DataParallel wrapper!
-            input_module = self.input_modules[task_name].module
-            if input_module.module not in outputs:
-                outputs[input_module.module] = input_module(input)
-            middle_module = self.middle_modules[task_name].module
-            if middle_module.module not in outputs:
-                outputs[middle_module.module] = middle_module(outputs[input_module.module])
-            attention_module = self.attention_modules[task_name].module
-            if attention_module.module not in outputs:
-                outputs[attention_module.module] = attention_module(outputs[middle_module.module])
-            head_module = self.head_modules[task_name].module
-            if head_module.module not in outputs:
-                outputs[head_module.module] = head_module(outputs[attention_module.module])
+            # Extra .module because of DataParallel and MetalModule wrappers!
+            # TODO: get base module for caching in a more principled way
+            input_module = self.input_modules[task_name]
+            if input_module.module.module not in outputs:
+                outputs[input_module.module.module] = input_module(input)
+            middle_module = self.middle_modules[task_name]
+            if middle_module.module.module not in outputs:
+                outputs[middle_module.module.module] = middle_module(outputs[input_module.module.module])
+            attention_module = self.attention_modules[task_name]
+            if attention_module.module.module not in outputs:
+                outputs[attention_module.module.module] = attention_module(outputs[middle_module.module.module])
+            head_module = self.head_modules[task_name]
+            if head_module.module.module not in outputs:
+                outputs[head_module.module.module] = head_module(outputs[attention_module.module.module])
         return {t: outputs[self.head_modules[t].module.module] for t in task_names}
 
     def calculate_loss(self, X, Ys, payload_name, labels_to_tasks):

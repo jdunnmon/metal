@@ -31,17 +31,18 @@ if __name__ == "__main__":
 
     # Identifying drains
     drains = pneumo_subset[pneumo_subset['drain']==1]
+    no_drains = pneumo_subset[pneumo_subset['drain']==0]
 
     # Getting pneumos from dev set
     df_dev = copy.deepcopy(dfs["dev"])
     dev_pneumos = df_dev[df_dev["Pneumothorax"]==1]
     
-    # Swapping half of drain pneumos with pneumos from dev set
-    drain_swap_data = drains.sample(frac=0.5)
+    # Swapping half of drain gt pneumos with pneumos from dev set
+    drain_swap_data = drains.sample(frac=0.5).append(no_drains.sample(frac=0.5))
     drain_swap_subset = dfs["test"][dfs["test"]["Image Index"].isin(drain_swap_data["Image Index"])]
-    dev_swap_subset = dev_pneumos.sample(len(drain_swap_subset))
-    logger.info(f"Number of drains to be swapped: {len(drain_swap_subset)}")
-    logger.info(f"Number of non-drains to be swapped: {len(dev_swap_subset)}")
+    dev_swap_subset = dev_pneumos.sample(min(len(dev_pneumos),len(drain_swap_subset)))
+    logger.info(f"Number of drain ground truth to be swapped: {len(drain_swap_subset)}")
+    logger.info(f"Number of drain unknown to be swapped: {len(dev_swap_subset)}")
 
     # Dropping rows from exisitng dataframes
     logger.info(f"Original dev length: {len(dfs['dev'])}")
@@ -62,6 +63,12 @@ if __name__ == "__main__":
     test_drains = len(dfs["test"][dfs["test"]["Image Index"].isin(drains["Image Index"])])
     logger.info(f"Number of drains in dev: {dev_drains}")
     logger.info(f"Number of drains in test: {test_drains}")
+
+    # Number in original subset in dev set:
+    dev_no_drains = len(dfs["dev"][dfs["dev"]["Image Index"].isin(no_drains["Image Index"])])
+    test_no_drains = len(dfs["test"][dfs["test"]["Image Index"].isin(no_drains["Image Index"])])
+    logger.info(f"Number of no drains in dev: {dev_no_drains}")
+    logger.info(f"Number of no drains in test: {test_no_drains}")
 
     # Saving
     if not os.path.exists(args.out_dir):
