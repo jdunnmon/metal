@@ -2,11 +2,13 @@ import argparse
 import logging
 import os
 import pandas as pd
+import pickle
 import torch
 from torch.autograd import Variable
 from tqdm import tqdm
 
 from metal.mmtl.cxr.cxr_tasks import create_cxr_datasets, create_cxr_dataloaders
+from metal.mmtl.cxr.scripts.slice_modules.canny_seg_slice import *
 
 # Configuring logger
 logging.basicConfig(level=logging.INFO)
@@ -27,28 +29,32 @@ if __name__ == "__main__":
     parser.add_argument('--load_type', '-lt', type=str,
                    default='torch', choices=['torch','pickle'])
     parser.add_argument('--save_dir', '-sd', type=str, required=True,
-                   help='use metal label convention if true')
+                   help='directory to save results to')
     parser.add_argument('--base_task', '-bt', type=str, required=True,
                    help='baseline task to use for slice')
     parser.add_argument('--splits', '-sp', type=str, required=True,
-                   help='comma separated list')
+                   help='comma separated list of splits')
+    parser.add_argument('--input_res', '-ir', type=int, default=224,
+                   help='input resolution for module')
+    parser.add_argument('--use_cuda', '-uc', type=int, default=1,
+                  help='use cuda')
     args = parser.parse_args()
 
     # Hard-coding resolution for now
     dataset_kwargs = {
         "transform_kwargs":{
-            "res":224
+            "res":args.input_res
         }
     }
     
     # detecting GPU
-    use_cuda = torch.cuda.is_available()
+    use_cuda = args.use_cuda and torch.cuda.is_available()
 
     # Getting slice labels on all subsets
     splits = args.splits.split(',')
 
     logger.info(f"Getting datasets and dataloaders...")
-    # Getting all datasets
+    # Getting all datasets -- note, all that matters is the data, not the labels
     datasets = create_cxr_datasets(
                 dataset_name=args.dataset_name,
                 splits=splits,
@@ -57,13 +63,14 @@ if __name__ == "__main__":
                 finding=args.base_task,
                 verbose=True,
                 dataset_kwargs=dataset_kwargs,
-                get_uid = True
+                get_uid = True,
+                return_dict = False
                 )
 
     # Wrap datasets with DataLoader objects
     data_loaders = create_cxr_dataloaders(
             datasets,
-            dl_kwargs={'num_workers':8, 'batch_size':16},
+            dl_kwargs={'num_workers':0, 'batch_size':16},
             split_prop=None,
             splits=splits,
             seed=123,
@@ -73,7 +80,7 @@ if __name__ == "__main__":
     # Loading saved slice module; .forward() gives slice label
     if args.load_type == 'torch':
         slice_module = torch.load(args.slice_module_path)
-    elif args.save_type == 'pickle':
+    elif args.load_type == 'pickle':
         with open(args.slice_module_path, 'rb') as fl:
             slice_module = pickle.load(fl)
     else:

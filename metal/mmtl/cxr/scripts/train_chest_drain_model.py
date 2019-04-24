@@ -17,6 +17,7 @@ from metal.logging.tensorboard import TensorBoardWriter
 from metal.mmtl.cxr.cxr_datasets import CXR8Dataset
 from metal.mmtl.cxr.utils.sampler import ImbalancedDatasetSampler
 from metal.mmtl.cxr.cxr_preprocess import transform_for_dataset
+from metal.mmtl.modules import MetalModuleWrapper
 
 parser = argparse.ArgumentParser(description='PyTorch Training')
 
@@ -60,13 +61,15 @@ def train_model():
             args.path_to_images,
             os.path.join(args.path_to_labels,f"{split}.tsv"),
             split,
-            transform=transform_for_dataset("CXR8",split),
+            transform=transform_for_dataset("CXR8",split, {'res':224}),
             subsample=0,
             finding="ALL",
             pooled=False,
             get_uid=False,
             slice_labels="DRAIN",
             single_task="DRAIN",
+            return_dict=False, 
+            label_transform=em_config['label_transform']
         )
         dataloaders[split] = DataLoader(dataset, **em_config['train_config']['data_loader_config'])
 
@@ -88,10 +91,9 @@ def train_model():
     em_config['device']=params.cuda
     metric = em_config['train_config']['validation_metric']
 
-
     # Initializing logger to get log config
     log_writer_class = TensorBoardWriter
-
+    
     # Initializing searcher
     searcher = RandomSearchTuner(
         EndModel,
@@ -102,7 +104,6 @@ def train_model():
     )
 
     em_config['train_config']['checkpoint_config']['checkpoint_dir'] = os.path.join(searcher.log_subdir,'checkpoints')    
-
    
     init_kwargs = {'layer_out_dims':[encode_dim, num_classes]}
     init_kwargs.update(em_config)

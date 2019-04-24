@@ -215,7 +215,10 @@ class CannySegSliceModule(nn.Module):
         
         # If no lines, no drain
         if hough_line_image_1 is None:
-            return 2, None, None
+            if return_image:
+                return (2, None, None)
+            else:
+                return 2
         
         # Getting morphological closure
         morph_clos_1 = cv2.morphologyEx(hough_line_image_1, cv2.MORPH_CLOSE, kernel=np.array([2,10]),iterations=10)
@@ -236,7 +239,10 @@ class CannySegSliceModule(nn.Module):
         
         # If no lines, no drain
         if hough_lines_2 is None:
-            return 2, None, None
+            if return_image:
+                return (2, None, None)
+            else:
+                return 2
         
         # Executing heuristic function
         out = self.heuristic_function(hough_lines_2, length)

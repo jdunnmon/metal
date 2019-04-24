@@ -201,6 +201,7 @@ def create_tasks_and_payloads(full_task_names, **kwargs):
                 pooled=config["pool_payload_tasks"],
                 finding=payload_finding,
                 verbose=True,
+                seed=config["seed"],
                 dataset_kwargs=dataset_kwargs
                 )
 
@@ -297,7 +298,7 @@ def create_tasks_and_payloads(full_task_names, **kwargs):
                         slice_task_name = f"{task_name}:{slice_name}"
                         slice_task = create_slice_task(task, slice_task_name)
                         tasks.append(slice_task)
-                        add_slice_labels(payload, dataset, task_name, slice_name)
+                        add_slice_labels(payload, task_name, slice_name)
 
     return tasks, payloads
 
@@ -341,7 +342,9 @@ def create_cxr_datasets(
     subsample=-1,
     verbose=True,
     dataset_kwargs = {},
-    get_uid = False
+    get_uid = False,
+    return_dict=True,
+    seed=None
 ):
     if verbose:
         print(f"Loading {dataset_name} Dataset")
@@ -363,6 +366,8 @@ def create_cxr_datasets(
             subsample=subsample,
             finding=finding,
             get_uid = get_uid,
+            return_dict = return_dict,
+            seed = seed,
             **dataset_kwargs
         )
     return datasets

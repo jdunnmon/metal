@@ -34,6 +34,9 @@ class CXR8Dataset(Dataset):
         get_uid=False,
         slice_labels=None,
         single_task=None,
+        return_dict=True,
+        label_transform={},
+        seed=None
     ):
 
         self.transform = transform
@@ -47,11 +50,18 @@ class CXR8Dataset(Dataset):
         self.pooled = pooled
         self.single_task = single_task
         self.dataset_name = dataset_name
+        self.return_dict = return_dict
+        self.label_transform = label_transform
+        if seed is None:
+            self.seed = 123
+        else:
+            self.seed = int(seed)
+        print(f"Using dataset seed: {self.seed}")
 
         # can limit to sample, useful for testing
         # if fold == "train" or fold =="val": sample=500
         if subsample > 0 and subsample < len(self.df):
-            self.df = self.df.sample(subsample)
+            self.df = self.df.sample(subsample, random_state=self.seed)
 
         if (
             not finding == "ALL"
@@ -100,13 +110,17 @@ class CXR8Dataset(Dataset):
         # Adding tasks and labels -- right now, we train all labels associated with
         # a given task!
         for cls in classes:
-            label_vec = self.df[cls.upper().strip()].astype("int") > 0
+            cls_upper = cls.upper().strip()
+            label_vec = self.df[cls_upper].astype("int") > 0
             # Converting to metal format: 0 abstain, 2 negative
             label_vec[label_vec==0] = 2
+            if cls_upper in self.label_transform.keys():
+                print(f"Transforming labels for {cls} class")
+                label_vec = [self.label_transform[cls_upper](l) for l in label_vec]
             if self.pooled:
-                self.labels[cls.upper()] = np.array(label_vec).astype(int) 
+                self.labels[cls_uppper] = np.array(label_vec).astype(int) 
             else:
-                self.labels[f"{self.dataset_name}_{cls.upper()}"] = np.array(label_vec).astype(int)
+                self.labels[f"{self.dataset_name}_{cls_upper}"] = np.array(label_vec).astype(int)
 
 
     def __getitem__(self, idx):
@@ -117,7 +131,11 @@ class CXR8Dataset(Dataset):
         if self.transform:
             image = self.transform(image)
 
-        x = {"data": image}
+       
+        if self.return_dict:
+            x = {"data": image}
+        else:
+            x = image
 
         # If statement to train classifiers for single tasks outside mmtl
         if self.single_task is not None:
@@ -194,8 +212,11 @@ class CXR8Dataset(Dataset):
             else:
                 x, ys= instance
 
-           
-            image = x["data"]
+            if self.return_dict:
+                image = x["data"]
+            else:
+                image = x
+
             for task_name, y in ys.items():
                 Y_lists[task_name].append(y)
             X_list.append(image)
@@ -203,7 +224,10 @@ class CXR8Dataset(Dataset):
             if self.get_uid:
                 uid_list.append(uid)
         
-        Xs = {"data": torch.stack(X_list)}
+        if self.return_dict:
+            Xs = {"data": torch.stack(X_list)}
+        else:
+            Xs = torch.stack(X_list)
         Ys = self._collate_labels(Y_lists)
         if self.get_uid:
             uids = uid_list
@@ -325,6 +349,8 @@ def get_cxr_dataset(dataset_name, split, subsample=None, finding="ALL", pooled=F
     transform_kwargs = kwargs['transform_kwargs']
     config = get_task_config(dataset_name, split, subsample, finding, transform_kwargs) 
     config["get_uid"] = kwargs.get("get_uid", False)
+    config['return_dict'] = kwargs.get('return_dict', True)
+    config["seed"] = kwargs.get('seed', None)
     dataset_class = DATASET_CLASS_DICT[dataset_name] 
  
     return dataset_class( 
@@ -336,6 +362,8 @@ def get_cxr_dataset(dataset_name, split, subsample=None, finding="ALL", pooled=F
         finding=config["finding"], 
         pooled=False, 
         get_uid=config["get_uid"],
-        dataset_name = dataset_name, 
+        dataset_name = dataset_name,
+        return_dict = config['return_dict'],
+        seed=config["seed"]
     ) 
 
