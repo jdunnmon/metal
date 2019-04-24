@@ -57,7 +57,9 @@ class Task(ABC):
 
     def __repr__(self):
         cls_name = type(self).__name__
-        return f"{cls_name}(name={self.name}, loss_multiplier={self.loss_multiplier})"
+        return (
+            f"{cls_name}(name={self.name}, loss_multiplier={self.loss_multiplier:.2f})"
+        )
 
 
 class ClassificationTask(Task):

@@ -25,7 +25,7 @@ from metal.mmtl.glue.glue_modules import (
 from metal.mmtl.glue.glue_slices import create_slice_labels
 from metal.mmtl.payload import Payload
 from metal.mmtl.scorer import Scorer
-from metal.mmtl.slicing.slicing import create_slice_task
+from metal.mmtl.slicing.tasks import create_slice_task
 from metal.mmtl.task import ClassificationTask, RegressionTask
 from metal.mmtl.token_task import TokenClassificationTask
 from metal.utils import recursive_merge_dicts, set_seed
@@ -368,6 +368,25 @@ def create_glue_tasks_payloads(task_names, skip_payloads=False, **kwargs):
             raise Exception(msg)
 
         tasks.append(task)
+
+        # Gather slice names
+        slice_names = (
+            config["slice_dict"].get(task_name, []) if config["slice_dict"] else []
+        )
+
+        # Add a task for each slice
+        for slice_name in slice_names:
+            loss_multiplier = 1.0 / (2 * len(slice_names))
+            slice_task_name = f"{task_name}_slice:{slice_name}"
+            slice_task = create_slice_task(
+                task, f"{slice_task_name}:ind", "ind", loss_multiplier=loss_multiplier
+            )
+            tasks.append(slice_task)
+            slice_task = create_slice_task(
+                task, f"{slice_task_name}:pred", "pred", loss_multiplier=loss_multiplier
+            )
+            tasks.append(slice_task)
+
         if has_payload and not skip_payloads:
             # Create payloads (and add slices/auxiliary tasks as applicable)
             for split, data_loader in data_loaders.items():
@@ -382,26 +401,24 @@ def create_glue_tasks_payloads(task_names, skip_payloads=False, **kwargs):
                         aux_task_func = auxiliary_task_functions[aux_task_name]
                         payload = aux_task_func(payload)
 
-                # Add slice task and label sets if applicable
-                slice_names = (
-                    config["slice_dict"].get(task_name, [])
-                    if config["slice_dict"]
-                    else []
-                )
-
-                if slice_names:
-                    dataset = payload.data_loader.dataset
-                    for slice_name in slice_names:
-                        slice_task_name = f"{task_name}_slice:{slice_name}"
-                        slice_task = create_slice_task(task, slice_task_name)
-                        tasks.append(slice_task)
-
-                        slice_labels = create_slice_labels(
-                            dataset, base_task_name=task_name, slice_name=slice_name
+                # Add a labelset slice to each split
+                dataset = payload.data_loader.dataset
+                for slice_name in slice_names:
+                    slice_head_types = ["ind", "pred"]
+                    slice_labels = create_slice_labels(
+                        dataset, base_task_name=task_name, slice_name=slice_name
+                    )
+                    for slice_head_type in slice_head_types:
+                        slice_task_name = (
+                            f"{task_name}_slice:{slice_name}:{slice_head_type}"
                         )
-                        labelset_slice_name = f"{task_name}_slice:{slice_name}"
+                        labelset_slice_name = (
+                            f"{task_name}_slice:{slice_name}:{slice_head_type}"
+                        )
                         payload.add_label_set(
-                            slice_task_name, labelset_slice_name, slice_labels
+                            slice_task_name,
+                            labelset_slice_name,
+                            slice_labels[slice_head_type],
                         )
 
                 payloads.append(payload)

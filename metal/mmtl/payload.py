@@ -82,9 +82,10 @@ class Payload(object):
         """Retargets a labelset to the specified task name (in labels_to_tasks). """
 
         old_task = self.labels_to_tasks[label_name]
-        self.labels_to_tasks[label_name] = task_name
-        if verbose:
-            print(
-                f"label_set {label_name} now points to task {self.labels_to_tasks[label_name]} "
-                f"(originally, {old_task})."
-            )
+        if old_task != task_name:
+            self.labels_to_tasks[label_name] = task_name
+            if verbose:
+                print(
+                    f"labelset '{label_name}' -> task '{self.labels_to_tasks[label_name]}' "
+                    f"(originally, {old_task})."
+                )
