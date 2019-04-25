@@ -28,7 +28,7 @@ from metal.mmtl.cxr.cxr_modules import (
 from metal.end_model import IdentityModule
 from metal.mmtl.payload import Payload
 from metal.mmtl.scorer import Scorer
-from metal.mmtl.slicing.slicing import create_slice_task
+from metal.mmtl.slicing.tasks import create_slice_task
 from metal.mmtl.task import ClassificationTask, RegressionTask
 from metal.utils import recursive_merge_dicts, set_seed
 from metal.mmtl.cxr.cxr_datasets import get_cxr_dataset
@@ -296,7 +296,7 @@ def create_tasks_and_payloads(full_task_names, **kwargs):
                 for slice_name in slice_names:
                     if config['use_slices']:
                         slice_task_name = f"{task_name}:{slice_name}"
-                        slice_task = create_slice_task(task, slice_task_name)
+                        slice_task = create_slice_task(task, slice_task_name, "pred")
                         tasks.append(slice_task)
                         add_slice_labels(payload, task_name, slice_name)
 
