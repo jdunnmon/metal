@@ -134,14 +134,12 @@ if __name__ == "__main__":
     # Getting tasks
     tasks, payloads = create_tasks_and_payloads(task_names, **task_config)
     
-    # Getting base task object
-    base_task =[t for t in tasks if t.name==base_task_name][0]
-
     # TEST ASSERT FOR TASKS = TASKS IN PAYLOADS
     # np.array_equal(np.array([t.name for t in tasks]), np.array(payloads[0].task_names))
     model_config["verbose"] = False
     if model_config["slice_model"]:
         print("Initializing SliceModel...")
+        base_task =[t for t in tasks if t.name==base_task_name][0]
         tasks = convert_to_slicing_tasks(tasks)
         model = SliceModel(tasks, base_task=base_task, **model_config)
     else:
