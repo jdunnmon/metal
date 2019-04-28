@@ -5,7 +5,7 @@ import torch
 from torch.utils.data import Dataset
 from metal.utils import convert_labels
 
-def BASE(dataset, idx):
+def BASE(dataset, idx) -> bool:
     # Always returns True -- used to train a copy fo the base_labelset
     # NOTE/HACK: MUST be named "BASE" to match task definition
     return True

@@ -10,7 +10,7 @@ from metal.mmtl.modules import unwrap_module
 from metal.utils import move_to_device, recursive_merge_dicts, set_seed
 
 
-def validate_slice_tasks(tasks):
+def validate_slice_tasks(tasks, base_task=None):
     # validate slice head cardinality
     for t in tasks:
         if t.head_module.module.out_features != 1:
@@ -20,18 +20,19 @@ def validate_slice_tasks(tasks):
                 "specified by a output_dim=1."
             )
 
-    base_tasks = [t for t in tasks if not t.slice_head_type]
+    if base_task is None:
+        base_tasks = [t for t in tasks if not t.slice_head_type]
+        if len(base_tasks) != 1:
+            raise ValueError(f"SliceModel only supports 1 base task.")
+        base_task = base_tasks[0]
+ 
+    # No check yet, but right now assume only slices for one task
     slice_tasks = [t for t in tasks if t.slice_head_type]
-
-    # validate base task
-    if len(base_tasks) != 1:
-        raise ValueError(f"SliceModel only supports 1 base task.")
-    base_task = base_tasks[0]
 
     # validate shared body representations
     # TODO: clean up these checks
     for t in slice_tasks:
-        same_input = t.input_module is base_task.input_module
+        same_input = unwrap_module(t.input_module) is unwrap_module(base_task.input_module)
         same_middle = (
             (t.middle_module is None and base_task.middle_module is None)
             or t.middle_module is base_task.middle_module
@@ -78,11 +79,21 @@ class SliceModel(MetalModel):
     """
 
     def __init__(self, tasks, **kwargs):
-        validate_slice_tasks(tasks)
+        base_task = kwargs.get('base_task',None)
+        validate_slice_tasks(tasks, base_task=base_task)
         super().__init__(tasks, **kwargs)
-        self.base_task = [
-            t for t in self.task_map.values() if t.slice_head_type is None
-        ][0]
+        if base_task is None:
+            self.base_task = [
+                t for t in self.task_map.values() if t.slice_head_type is None
+            ][0]
+        else:
+            self.base_task = base_task
+        
+        print(f"Using slicing base task {base_task.name}...")
+
+        self.pred_tasks = {
+           name: t for name, t in self.task_map.items() if t.slice_head_type is None
+        }
         self.slice_pred_tasks = {
             name: t for name, t in self.task_map.items() if t.slice_head_type == "pred"
         }
@@ -90,6 +101,7 @@ class SliceModel(MetalModel):
             name: t for name, t in self.task_map.items() if t.slice_head_type == "ind"
         }
 
+    #def forward_pred(self, X)
     def forward_body(self, X):
         """ Makes a forward pass through the "body" of the network
         (everything before the head)."""
@@ -130,6 +142,12 @@ class SliceModel(MetalModel):
         """ Perform forward pass with slice-reweighted base representation through
         the base_task head. """
 
+        # First, running through the non-sliced tasks
+        pred_names = sorted( 
+            [task_name for task_name in self.pred_tasks.keys()]
+        )  
+
+        pred_heads = super(SliceModel,self).forward(X, pred_names)
         # Sort names to ensure that the representation is always
         # computed in the same order
         slice_pred_names = sorted(
@@ -142,7 +160,7 @@ class SliceModel(MetalModel):
 
         body = self.forward_body(X)
         slice_pred_heads = self.forward_heads(body, slice_pred_names)
-        slice_ind_heads = self.forward_heads(body, slice_ind_names)
+        slice_ind_heads = self.forward_heads(body, slice_ind_names) 
 
         # [batch_size, num_slices] unnormalized attention weights.
         # we then normalize the weights across all heads
@@ -171,6 +189,7 @@ class SliceModel(MetalModel):
         output = self.forward_heads(body, [self.base_task.name])
         output.update(slice_pred_heads)
         output.update(slice_ind_heads)
+        output.update(pred_heads)
         return output
 
     @torch.no_grad()
