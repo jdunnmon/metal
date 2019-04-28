@@ -1,3 +1,4 @@
+import numpy as np
 import os
 import pandas as pd
 import torch
@@ -11,6 +12,14 @@ def BASE(dataset, idx):
 
 def chest_drain_cnn_neg(dataset: Dataset) -> dict:
     #data_file = os.path.join(os.environ["CXRDATA"],'CXR8-DRAIN-SLICE-NEG',f"{dataset.split}.tsv")
+    data_file = os.path.join(os.environ["CXRDATA"],'CXR8-DRAIN-SLICE-NEG-CNN-F1',f"{dataset.split}.tsv")
+    slice_data = pd.read_csv(data_file, sep='\t')
+    keys = slice_data['data_index'].tolist()
+    values = [int(l) for l in slice_data['slice_label'].astype(int)]
+    slice_dict = dict(zip(keys, values))
+    return slice_dict
+
+def chest_drain_canny_seg_neg(dataset: Dataset) -> dict:
     data_file = os.path.join(os.environ["CXRDATA"],'CXR8-DRAIN-SLICE-NEG-CNN-F1',f"{dataset.split}.tsv")
     slice_data = pd.read_csv(data_file, sep='\t')
     keys = slice_data['data_index'].tolist()
@@ -39,13 +48,17 @@ def create_slice_labels(dataset, base_task_name, slice_name, verbose=False):
     
     # Getting base task labels
     Y_base = dataset.labels[base_task_name]
-   
+  
     # Making y_slice
     #Y_slice = Y_base.clone().masked_fill_(slice_indicators == 0, 0)
 
     Y_slice = [
          label * indicator for label, indicator in zip(Y_base, slice_indicators)
     ]
+    Y_slice = np.array(Y_slice)
+    #Y_slice_masked = torch.tensor(Y_slice_masked)
+
+    #Y_slice_masked = Y_slice * Y_base
 
     if verbose:
         if not any(Y_slice):
@@ -54,4 +67,5 @@ def create_slice_labels(dataset, base_task_name, slice_name, verbose=False):
             print(f"Found {sum(slice_indicators)} examples in slice {slice_name}.")
 
     categorical_indicator = convert_labels(torch.tensor(slice_indicators), "onezero", "categorical")
+    categorical_indicator = categorical_indicator.numpy()
     return {"ind": categorical_indicator, "pred": Y_slice}

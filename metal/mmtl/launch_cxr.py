@@ -120,7 +120,18 @@ if __name__ == "__main__":
     # TEST ASSERT FOR TASKS = TASKS IN PAYLOADS
     # np.array_equal(np.array([t.name for t in tasks]), np.array(payloads[0].task_names))
     model_config["verbose"] = False
-    model = MetalModel(tasks, **model_config)
+    if model_config["slice_model"]:
+        # Ensuring we get correct labelsets
+        task_config["use_slice_model"] = True
+
+        # Adding BASE to slice dict for SliceModel
+        for k in task_config['slice_dict']:
+            task_config['slice_dict'][k].append('BASE')
+
+        # Initializing SliceModel
+        SliceModel(tasks, **model_config)
+    else:
+        model = MetalModel(tasks, **model_config)
 
     if args.model_weights:
         model.load_weights(args.model_weights)

@@ -14,6 +14,7 @@ model_defaults = {
     "verbose": True,
     "fp16": False,
     "model_weights": None,  # the path to a saved checkpoint to initialize with
+    "slice_model":False, # if True, use SliceModel
 }
 
 

@@ -1,5 +1,5 @@
 import torch
-
+import numpy as np
 
 class Payload(object):
     """A bundle of data_loaders...
@@ -49,21 +49,21 @@ class Payload(object):
             )
         elif label_list is not None:
             assert label_fn is None
-            assert isinstance(label_list, torch.Tensor)
+            assert isinstance(label_list, torch.Tensor) or isinstance(label_list, np.ndarray)
             new_labels = label_list
         else:
             raise ValueError("Incorrect label object type -- supply list or function")
 
-        if new_labels.dim() < 2:
-            raise Exception("New label_set must have at least two dimensions: [n, ?]")
+        #if new_labels.dim() < 2:
+        #    raise Exception("New label_set must have at least two dimensions: [n, ?]")
 
         self.data_loader.dataset.labels[task_name] = new_labels
         self.labels_to_tasks[label_name] = task_name
 
         if verbose:
-            active = torch.any(new_labels != 0, dim=1)
+            active = np.array([a!=0 for a in new_labels])
             msg = (
-                f"Added label_set with {sum(active.long())}/{len(active)} labels for "
+                f"Added label_set with {sum(active)}/{len(active)} labels for "
                 f"task {task_name} to payload {self.name}."
             )
             print(msg)

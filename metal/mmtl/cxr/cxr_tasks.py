@@ -316,11 +316,11 @@ def add_slice_labels_and_tasks(pay, tsks, tsk, slice_nm, use_slice_model=False, 
                         )
    
     # Converting to torch
-    for k,v in slice_labels.items():
-        v = torch.tensor(v) 
-        if v.dim()<2:
-            v = v[:,None]
-    slice_labels[k] = v
+    #for k,v in slice_labels.items():
+    #    v = torch.tensor(v) 
+    #    if v.dim()<2:
+    #        v = v[:,None]
+    #slice_labels[k] = v
  
  #   slice_labels = {k:torch.tensor(v) for k,v in slice_labels.items()}
     
@@ -360,18 +360,18 @@ def add_slice_labels_and_tasks(pay, tsks, tsk, slice_nm, use_slice_model=False, 
                 slice_labels[slice_head_type],
             )
 
-def get_slice_labels(pay, task_nm, slice_nm):
-    datast = pay.data_loader.dataset
-    slice_labels = create_slice_labels(
-                        datast, base_task_name=task_nm, slice_name=slice_nm
-                        )
-    slice_labels = torch.Tensor(slice_labels)
-    if slice_labels.dim()<2:
-        slice_labels = slice_labels[:,None]
+#def get_slice_labels(pay, task_nm, slice_nm):
+#    datast = pay.data_loader.dataset
+#    slice_labels = create_slice_labels(
+#                        datast, base_task_name=task_nm, slice_name=slice_nm
+#                        )
+#    slice_labels = torch.Tensor(slice_labels)
+#    if slice_labels.dim()<2:
+#        slice_labels = slice_labels[:,None]
 
-    labelset_slice_name=f"{task_nm}:{slice_nm}"
-    pay.add_label_set(labelset_slice_name, labelset_slice_name,
-                        label_list = slice_labels)
+#    labelset_slice_name=f"{task_nm}:{slice_nm}"
+#    pay.add_label_set(labelset_slice_name, labelset_slice_name,
+#                        label_list = slice_labels)
 
 def get_attention_module(config, neck_dim):
     # Get attention head

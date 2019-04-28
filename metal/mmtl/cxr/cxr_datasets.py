@@ -111,16 +111,21 @@ class CXR8Dataset(Dataset):
         # a given task!
         for cls in classes:
             cls_upper = cls.upper().strip()
-            label_vec = self.df[cls_upper].astype("int") > 0
+            label_vec = (self.df[cls_upper].astype(int) > 0).astype(int)
             # Converting to metal format: 0 abstain, 2 negative
             label_vec[label_vec==0] = 2
             if cls_upper in self.label_transform.keys():
                 print(f"Transforming labels for {cls} class")
                 label_vec = [self.label_transform[cls_upper](l) for l in label_vec]
+            #label_set = torch.tensor(label_vec).int()
+            #if label_set.dim()<2:
+            #    label_set = label_set[:,None]
+            
+            label_set = np.array(label_vec).astype(int)
             if self.pooled:
-                self.labels[cls_uppper] = np.array(label_vec).astype(int) 
+                self.labels[cls_uppper] = label_set
             else:
-                self.labels[f"{self.dataset_name}_{cls_upper}"] = np.array(label_vec).astype(int)
+                self.labels[f"{self.dataset_name}_{cls_upper}"] = label_set
 
 
     def __getitem__(self, idx):
@@ -259,12 +264,12 @@ class CXR8Dataset(Dataset):
                 Y = torch.from_numpy(np.array(Y))
             elif isinstance(Y[0], np.float):
                 Y = torch.from_numpy(np.array(Y))
-            elif (
-                isinstance(Y[0], list)
-                or isinstance(Y[0], np.ndarray)
-                or isinstance(Y[0], torch.Tensor)
-            ):
-                Y = padded_tensor(Y)
+            #elif (
+            #    isinstance(Y[0], list)
+            #    or isinstance(Y[0], np.ndarray)
+            #    or isinstance(Y[0], torch.Tensor)
+            #):
+            #    Y = padded_tensor(Y)
             else:
                 msg = f"Unrecognized dtype of label_set {label_name}: " f"{type(Y[0])}"
                 raise Exception(msg)
@@ -293,7 +298,7 @@ class CXR8Dataset(Dataset):
         for task_name, Y in Ys.items():
             if isinstance(Y[0], (int, np.int64)): 
                 Y = torch.tensor(Y, dtype=torch.long)
-            elif isinstance(Y[0], torch.Tensor) and len(Y[0].size())==0:
+            elif isinstance(Y[0], torch.Tensor) and len(Y[0].size())<2:
                 Y = torch.tensor(Y, dtype=torch.float) 
             elif isinstance(Y[0], np.integer):
                 Y = torch.from_numpy(np.array(Y)) 
@@ -306,7 +311,7 @@ class CXR8Dataset(Dataset):
             elif ( 
                 isinstance(Y[0], list) 
                 or isinstance(Y[0], np.ndarray) 
-                or isinstance(Y[0], torch.Tensor) and len(Y[0].size())>0
+                or isinstance(Y[0], torch.Tensor) and len(Y[0].size())>=2
             ): 
                 if isinstance(Y[0][0], (int, np.integer)): 
                     dtype = torch.long 
