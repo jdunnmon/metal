@@ -2,11 +2,13 @@ import argparse
 import logging
 import os
 import pandas as pd
+import pickle
 import torch
 from torch.autograd import Variable
 from tqdm import tqdm
 
 from metal.mmtl.cxr.cxr_tasks import create_cxr_datasets, create_cxr_dataloaders
+from metal.mmtl.cxr.scripts.slice_modules.canny_seg_slice import *
 
 # Configuring logger
 logging.basicConfig(level=logging.INFO)
@@ -34,6 +36,8 @@ if __name__ == "__main__":
                    help='comma separated list of splits')
     parser.add_argument('--input_res', '-ir', type=int, default=224,
                    help='input resolution for module')
+    parser.add_argument('--use_cuda', '-uc', type=int, default=1,
+                  help='use cuda')
     args = parser.parse_args()
 
     # Hard-coding resolution for now
@@ -44,7 +48,7 @@ if __name__ == "__main__":
     }
     
     # detecting GPU
-    use_cuda = torch.cuda.is_available()
+    use_cuda = args.use_cuda and torch.cuda.is_available()
 
     # Getting slice labels on all subsets
     splits = args.splits.split(',')
@@ -76,7 +80,7 @@ if __name__ == "__main__":
     # Loading saved slice module; .forward() gives slice label
     if args.load_type == 'torch':
         slice_module = torch.load(args.slice_module_path)
-    elif args.save_type == 'pickle':
+    elif args.load_type == 'pickle':
         with open(args.slice_module_path, 'rb') as fl:
             slice_module = pickle.load(fl)
     else:

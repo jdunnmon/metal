@@ -6,13 +6,16 @@ def split_full_metric(full_metric):
         task = None
     elif len(pieces) == 3:
         task, split, name = pieces
+        label = None
+    elif len(pieces) == 4:
+        task, split, label, name = pieces
     else:
         msg = (
             f"Required a full metric name (task/split/name or split/name) but "
             f"instead received: {full_metric}"
         )
         raise Exception(msg)
-    return task, split, name
+    return task, split, label, name
 
 
 def join_full_metric(task, split, metric):

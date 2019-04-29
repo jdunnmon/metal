@@ -1,4 +1,4 @@
-pyorch_pretrained_bert
-ntlk
+pytorch_pretrained_bert
+nltk
 dill
 spacy

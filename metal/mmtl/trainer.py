@@ -836,14 +836,16 @@ class MultitaskTrainer(object):
                 )
                 raise Exception(msg)
         else:
-            if checkpoint_metric.count("/") != 2:
+            if checkpoint_metric.count("/") != 3:
                 msg = (
                     f"checkpoint_metric must have a full metric name "
-                    f"(task/split/metric); you submitted: {checkpoint_metric}"
+                    f"(task/split/label_name/metric); you submitted: {checkpoint_metric}"
                 )
                 raise Exception(msg)
 
-            task_name, payload_name, metric = split_full_metric(checkpoint_metric)
+            task_name, payload_name, label_name, metric = split_full_metric(
+                checkpoint_metric
+            )
             try:
                 task = model.task_map[task_name]
             except IndexError:

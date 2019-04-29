@@ -62,3 +62,4 @@ def get_cxr14_rocs_from_log(chexnet_results, metrics_dict, col_name = 'experimen
     chexnet_results[col_name] = chexnet_results.index.map(output_dict)
             
     return chexnet_results 
+
