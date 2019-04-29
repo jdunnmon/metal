@@ -200,7 +200,8 @@ if __name__ == "__main__":
         for tsk, slices in task_config['slice_dict'].items():
             for slc in slices:
                 if not task_config['use_slices']:
-                    add_slice_labels_and_tasks(main_payload,tsk,slc,
+                    tsk_obj = tasks[[t.name for t in tasks].index(tsk)]
+                    add_slice_labels_and_tasks(main_payload,tasks,tsk_obj,slc,
                         add_task=False)
                 main_payload.retarget_labelset(f"{tsk}_slice:{slc}:pred", tsk)
         # Scoring model
