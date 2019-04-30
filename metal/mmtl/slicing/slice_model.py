@@ -88,11 +88,12 @@ class SliceModel(MetalModel):
             ][0]
         else:
             self.base_task = base_task
-        
-        print(f"Using slicing base task {base_task.name}...")
 
+        print(f"Using slicing base task {self.base_task.name}...")
+
+    # Critical that pred tasks does not include the base task!
         self.pred_tasks = {
-           name: t for name, t in self.task_map.items() if t.slice_head_type is None
+           name: t for name, t in self.task_map.items() if ((t.slice_head_type is None) and (t is not self.base_task))
         }
         self.slice_pred_tasks = {
             name: t for name, t in self.task_map.items() if t.slice_head_type == "pred"
