@@ -9,7 +9,7 @@ def get_circle_mask(X, center, radius):
     return mask.astype(np.bool)
 
 
-def generate_data(N, decision_boundary_flip):
+def generate_data(N, label_flips):
     """ Generates data in numpy form.
 
     Returns: (
@@ -24,19 +24,21 @@ def generate_data(N, decision_boundary_flip):
     Y = (X[:, 0] > X[:, 1] + 0.25).astype(int) + 1
 
     # abberation in decision boundary
-    Y[decision_boundary_flip(X)] = 1
+    for mask_fn, label in label_flips.items():
+        Y[mask_fn(X)] = label
 
     uid_lists, Xs, Ys = split_data(uids, X, Y, splits=[0.5, 0.25, 0.25], shuffle=True)
     return uid_lists, Xs, Ys
 
 
-def generate_slice_labels(X, Y, slice_funcs):
+def generate_slice_labels(X, Y, slice_funcs, create_ind):
     """
     Args:
         X: [N x D] data
         Y: [N x 1] labels \in {0, 1}
         slice_funcs [dict]: mapping slice_names to slice_fn(X),
             which returns [N x 1] boolean mask indic. whether examples are in slice
+        create_ind [bool]: indicating whether we should create indicator labels
 
     Returns:
         slice_labels [dict]: mapping slice_names to dict of {
@@ -57,6 +59,8 @@ def generate_slice_labels(X, Y, slice_funcs):
             slice_mask.astype(np.int), "onezero", "categorical"
         )
 
-        slice_labels[slice_name] = {"ind": categorical_indicator, "pred": Y_gt}
+        slice_labels[slice_name] = {"pred": Y_gt}
+        if create_ind:
+            slice_labels[slice_name].update({"ind": categorical_indicator})
 
     return slice_labels
