@@ -55,10 +55,7 @@ task_defaults = {
     "max_datapoints": -1,
     "seed": None,
     "preprocessed": False,  # If True, load the cached datasets with spacy tokens saved
-    "dl_kwargs": {
-        "batch_size": 16,
-        "shuffle": True,  # Used only when split_prop is None; otherwise, use Sampler
-    },
+    "dl_kwargs": {"batch_size": 16},
     "task_dl_kwargs": None,  # Overwrites dl kwargs e.g. {"STSB": {"batch_size": 2}}
     # NOTE: This dropout only applies to the output of the pooler; it will not change
     # the dropout rate of BERT (defaults to 0.1) or add dropout to other modules.
@@ -487,21 +484,29 @@ def create_glue_datasets(
 def create_glue_dataloaders(datasets, dl_kwargs, split_prop, splits, seed=123):
     """ Initializes train/dev/test dataloaders given dataset_class"""
     dataloaders = {}
+    split_shuffle = {"train": True, "valid": False, "test": False}
 
     # When split_prop is not None, we use create an artificial dev set from the train set
     if split_prop and "train" in splits:
         dataloaders["train"], dataloaders["valid"] = datasets["train"].get_dataloader(
-            split_prop=split_prop, split_seed=seed, **dl_kwargs
+            split_prop=split_prop,
+            split_seed=seed,
+            shuffle=split_shuffle["train"],
+            **dl_kwargs,
         )
 
         # Use the dev set as test set if available.
         if "valid" in datasets:
-            dataloaders["test"] = datasets["valid"].get_dataloader(**dl_kwargs)
+            dataloaders["test"] = datasets["valid"].get_dataloader(
+                shuffle=split_shuffle["test"], **dl_kwargs
+            )
 
     # When split_prop is None, we use standard train/dev/test splits.
     else:
         for split_name in datasets:
-            dataloaders[split_name] = datasets[split_name].get_dataloader(**dl_kwargs)
+            dataloaders[split_name] = datasets[split_name].get_dataloader(
+                shuffle=split_shuffle[split_name], **dl_kwargs
+            )
     return dataloaders
 
 

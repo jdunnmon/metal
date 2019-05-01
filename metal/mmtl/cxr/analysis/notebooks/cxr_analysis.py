@@ -24,7 +24,8 @@ def load_results_from_log(log_dir):
     return results
 
 def get_task_name(nm):
-    return '_'.join(nm.split('_')[1:]).split(":")[0]
+    nm_red = '_'.join(nm.split('_')[1:]).split(":")[0]
+    return nm_red
 
 def get_labelset_name(nm):
     return '_'.join(nm.split('_')[1:])
@@ -50,7 +51,8 @@ def get_cxr14_rocs_from_log(chexnet_results, metrics_dict, col_name = 'experimen
             labelset_name = f"{labelset_name}:{head}"
         
         # Checking if this is a valid result for comparison
-        if (task_name in labelset_name) and (task_name.split(":")[0].upper() in chexnet_results.index) and (metric == plot_metric):
+        #if (task_name in labelset_name) and (task_name.split(":")[0].upper() in chexnet_results.index) and (metric == plot_metric):
+        if (task_name in labelset_name) and any([a in task_name.split(":")[0].upper() for a in chexnet_results.index]) and (metric == plot_metric):
             output_dict[labelset_name.upper()] = val
         
         if (labelset_name.upper() not in chexnet_results.index) and load_slices:

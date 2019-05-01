@@ -7,6 +7,7 @@ import torch
 import torch.nn as nn
 
 from metal.utils import move_to_device, recursive_merge_dicts, set_seed
+from metal.mmtl.modules import get_base_module
 
 model_defaults = {
     "seed": None,
@@ -15,6 +16,8 @@ model_defaults = {
     "fp16": False,
     "model_weights": None,  # the path to a saved checkpoint to initialize with
     "slice_model":False, # if True, use SliceModel
+    # whether to delete model source model head weights while loading existing weights
+    "delete_heads": False, 
 }
 
 
@@ -105,21 +108,20 @@ class MetalModel(nn.Module):
         input = move_to_device(X, self.config["device"])
         outputs = {}
         for task_name in task_names:
-            # Extra .module because of DataParallel and MetalModule wrappers!
-            # TODO: get base module for caching in a more principled way
+            # USe get_base_module to remove MetalModel and DataParallel wrppaers in cache keys
             input_module = self.input_modules[task_name]
-            if input_module.module.module not in outputs:
-                outputs[input_module.module.module] = input_module(input)
+            if get_base_module(input_module) not in outputs:
+                outputs[get_base_module(input_module)] = input_module(input)
             middle_module = self.middle_modules[task_name]
-            if middle_module.module.module not in outputs:
-                outputs[middle_module.module.module] = middle_module(outputs[input_module.module.module])
+           if get_base_module(middle_module) not in outputs:
+                outputs[get_base_module(middle_module)] = middle_module(outputs[input_module])
             attention_module = self.attention_modules[task_name]
-            if attention_module.module.module not in outputs:
-                outputs[attention_module.module.module] = attention_module(outputs[middle_module.module.module])
-            head_module = self.head_modules[task_name]
-            if head_module.module.module not in outputs:
-                outputs[head_module.module.module] = head_module(outputs[attention_module.module.module])
-        return {t: outputs[self.head_modules[t].module.module] for t in task_names}
+            if get_base_module(attention_module) not in outputs:
+                outputs[get_base_module(attention_module)] = attention_module(outputs[middle_module])
+            head_module = self.head_modules[task_name].module
+            if get_base_module(head_module) not in outputs:
+                outputs[get_base_module(head_module)] = head_module(outputs[attention_module])
+        return {t: outputs[get_base_module(self.head_modules[t])] for t in task_names}
 
     def calculate_loss(self, X, Ys, payload_name, labels_to_tasks):
         """Returns a dict of {task_name: loss (a FloatTensor scalar)}.
@@ -136,6 +138,8 @@ class MetalModel(nn.Module):
         count_dict = {}  # Stores the number of active examples by task
 
         for label_name, task_name in labels_to_tasks.items():
+            if task_name is None:
+                continue
             loss_name = f"{task_name}/{payload_name}/{label_name}/loss"
             Y = Ys[label_name]
             out = outputs[task_name]
@@ -195,8 +199,8 @@ class MetalModel(nn.Module):
     def update_config(self, update_dict):
         """Updates self.config with the values in a given update dictionary."""
         self.config = recursive_merge_dicts(self.config, update_dict)
-
-    def load_weights(self, model_path):
+       
+    def load_weights(self, model_path, delete_heads=False):
         """Load model weights from checkpoint."""
         if self.config["device"] >= 0:
             device = torch.device(f"cuda:{self.config['device']}")
@@ -206,9 +210,25 @@ class MetalModel(nn.Module):
             self.load_state_dict(torch.load(model_path, map_location=device)["model"])
         except RuntimeError:
             print("Your destination state dict has different keys for the update key.")
-            self.load_state_dict(
-                torch.load(model_path, map_location=device)["model"], strict=False
-            )
+            try:
+                source_state_dict = torch.load(model_path, map_location=device)["model"]
+                self.load_state_dict(source_state_dict, strict=False)
+
+            except RuntimeError:
+                # use the slicing hack to delete existing heads
+                if self.config["delete_heads"]:
+                    warnings.warn(
+                        "SLICING HACK: Attemping to remove heads in source state dict."
+                        "You MUST fine-tune the model to recover original performance."
+                    )
+
+                    for module in list(source_state_dict.keys()):
+                        if "head_modules" in module:
+                            msg = f"Deleting {module} from loaded weights"
+                            warnings.warn(msg)
+                            del source_state_dict[module]
+
+                    self.load_state_dict(source_state_dict, strict=False) 
 
     def save_weights(self, model_path):
         """Saves weight in checkpoint directory"""

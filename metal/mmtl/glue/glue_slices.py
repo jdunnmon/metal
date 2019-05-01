@@ -38,6 +38,54 @@ def more_people(dataset, idx):
     return people > 1
 
 
+def has_numerical_date(dataset, idx):
+    both_sentences = dataset.sentences[idx][0] + " " + dataset.sentences[idx][1]
+    doc = nlp(both_sentences)
+    return any(
+        [x_ent.label_ == "DATE" and x.like_num for x, x_ent in zip(doc, doc.ents)]
+    )
+
+
+def has_preposition(dataset, idx):
+    both_sentences = dataset.sentences[idx][0] + " " + dataset.sentences[idx][1]
+    doc = nlp(both_sentences)
+    return any([x.pos_ == "ADP" for x in doc])
+
+
+def has_preposition_s2(dataset, idx):
+    doc = nlp(dataset.sentences[idx][1])
+    return any([x.pos_ == "ADP" for x in doc])
+
+
+def common_negation(dataset, idx):
+    negation_words = [
+        # https://www.grammarly.com/blog/negatives/
+        "no",
+        "not",
+        "none",
+        "no one",
+        "nobody",
+        "nothing",
+        "neither",
+        "nowhere",
+        "never",
+        "hardly",
+        "scarecly",
+        "barely",
+        "doesn't",
+        "isn't",
+        "wasn't",
+        "shouldn't",
+        "wouldn't",
+        "couldn't",
+        "won't",
+        "can't",
+        "don't",
+    ]
+    both_sentences = dataset.sentences[idx][0] + " " + dataset.sentences[idx][1]
+    return any([x in negation_words for x in both_sentences.split()])
+
+
 def entity_secondonly(dataset, idx):
     sent1 = dataset.sentences[idx][0]
     sent2 = nlp(dataset.sentences[idx][1])
