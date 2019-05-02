@@ -170,7 +170,7 @@ class MultitaskTrainer(object):
             self.config["seed"] = np.random.randint(1e6)
         set_seed(self.config["seed"])
 
-    def train_model(self, model, payloads, **kwargs):
+    def train_model(self, model, payloads, train_schedule_plan=None, **kwargs):
         # NOTE: misses="insert" so we can log extra metadata (e.g. num_parameters)
         # and eventually write to disk.
         self.config = recursive_merge_dicts(self.config, kwargs, misses="insert")
@@ -211,6 +211,7 @@ class MultitaskTrainer(object):
         # Train the model
         # TODO: Allow other ways to train besides 1 epoch of all datasets
         model.train()
+
         # Dict metrics_hist contains the most recently recorded value of all metrics
         self.metrics_hist = {}
         self._reset_losses()
@@ -221,12 +222,70 @@ class MultitaskTrainer(object):
                 total=self.batches_per_epoch,
                 disable=(not progress_bar),
             )
-            for batch_num, (batch, payload_name, labels_to_tasks) in t:
+            for batch_num, (batch, payload_name, labels_to_tasks_) in t:
                 # NOTE: actual batch_size may not equal config's target batch_size,
                 # for example due to orphan batches. We base batch size off of Y instead
                 # of X because we know Y will contain tensors, whereas X can be of any
                 # format the input_module accepts, including tuples of tensors, etc.
                 _, Ys = batch
+
+                # Swith the tasks to train based on train_schedule_plan and epoch
+                labels_to_tasks = labels_to_tasks_.copy()
+
+                task_to_train = list(labels_to_tasks.values())
+                freezed_tasks = []
+                if train_schedule_plan:
+                    _max_epoch = self.config["n_epochs"] + 1
+                    for max_epoch, tasks in train_schedule_plan["plan"].items():
+                        max_epoch = int(max_epoch)
+                        if max_epoch > epoch and max_epoch < _max_epoch:
+                            _max_epoch = max_epoch
+                            task_to_train = tasks
+                        if (
+                            "freeze" in train_schedule_plan
+                            and train_schedule_plan["freeze"] in ["all", "body"]
+                            and max_epoch < epoch
+                        ):
+                            for task in tasks:
+                                freezed_tasks.append(task)
+                    if (
+                        "freeze" in train_schedule_plan
+                        and train_schedule_plan["freeze"] == "all"
+                    ):
+                        for task in freezed_tasks:
+                            if task in task_to_train:
+                                task_to_train.remove(task)
+
+                if task_to_train:
+                    del_keys = []
+                    for key in labels_to_tasks.keys():
+                        if labels_to_tasks[key] not in task_to_train:
+                            del_keys.append(key)
+                    for key in del_keys:
+                        del labels_to_tasks[key]
+
+                if freezed_tasks != [] and batch_num == 0:
+                    print(f"Freezing {freezed_tasks} {train_schedule_plan['freeze']}")
+                    for task_name in freezed_tasks:
+                        if task_name in model.input_modules:
+                            for p in model.input_modules[task_name].parameters():
+                                p.requires_grad = False
+                        if task_name in model.middle_modules:
+                            for p in model.middle_modules[task_name].parameters():
+                                p.requires_grad = False
+                        if task_name in model.attention_modules:
+                            for p in model.attention_modules[task_name].parameters():
+                                p.requires_grad = False
+                        if (
+                            task_name in model.head_modules
+                            and train_schedule_plan["freeze"] == "all"
+                        ):
+                            for p in model.head_modules[task_name].parameters():
+                                p.requires_grad = False
+
+                if batch_num == 0:
+                    print(f"Training tasks {labels_to_tasks}")
+
                 batch_size = len(next(iter(Ys.values())))
                 batch_id = epoch * self.batches_per_epoch + batch_num
 

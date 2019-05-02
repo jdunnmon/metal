@@ -52,6 +52,9 @@ if __name__ == "__main__":
         choices=["naive", "hard_param", "soft_param"],
         help="Model to run and evaluate",
     )
+    parser.add_argument(
+        "--train_schedule_plan", type=str, default=None, help="Training schedule"
+    )
 
     parser = add_flags_from_config(parser, trainer_defaults)
     parser = add_flags_from_config(parser, model_defaults)
@@ -87,6 +90,12 @@ if __name__ == "__main__":
     else:
         task_config.update({"slice_dict": None})
 
+    # Load train schedule
+    if args.train_schedule_plan is not None:
+        train_schedule_plan = json.loads(args.train_schedule_plan)
+    else:
+        train_schedule_plan = None
+
     tasks, payloads = create_glue_tasks_payloads(task_names, **task_config)
     if use_slice_heads:
         tasks = convert_to_slicing_tasks(tasks)
@@ -95,7 +104,7 @@ if __name__ == "__main__":
     model = model_class(tasks, **model_config)
 
     trainer = MultitaskTrainer(**trainer_config)
-    trainer.train_model(model, payloads)
+    trainer.train_model(model, payloads, train_schedule_plan)
 
     # Create evaluation payload with test_slices -> primary task head
     task_config.update({"slice_dict": slice_dict})
