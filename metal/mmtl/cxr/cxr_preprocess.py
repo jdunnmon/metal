@@ -26,10 +26,12 @@ def tsv_path_for_dataset(dataset_name, dataset_split):
         os.environ["CXRDATA"], "{}/{}.tsv".format(dataset_name, dataset_split)
     )
 
+
 def get_label_fn(input_dict):
     """ Given mapping (specified as dict), return two-way functions for mapping."""
     reverse_dict = {y: x for x, y in input_dict.items()}
     return input_dict.get, reverse_dict.get
+
 
 def transform_for_dataset(dataset_name, dataset_split, kwargs):
 
@@ -37,18 +39,18 @@ def transform_for_dataset(dataset_name, dataset_split, kwargs):
         dataset_split = "val"
 
     # Getting resolution kwarg
-    res = kwargs.get("res",224)
+    res = kwargs.get("res", 224)
     print(f"Using resolution {res}...")
 
     if "CXR8" in dataset_name:
         # use imagenet mean,std for normalization
         mean = [0.485, 0.456, 0.406]
         std = [0.229, 0.224, 0.225]
-    
+
         # define torchvision transforms
         data_transforms = {
             "train": transforms.Compose(
-                [   
+                [
                     transforms.RandomHorizontalFlip(),
                     transforms.Scale(res),
                     # because scale doesn't always give 224 x 224, this ensures 224 x
@@ -59,7 +61,7 @@ def transform_for_dataset(dataset_name, dataset_split, kwargs):
                 ]
             ),
             "val": transforms.Compose(
-                [   
+                [
                     transforms.Scale(res),
                     transforms.CenterCrop(res),
                     transforms.ToTensor(),
@@ -82,10 +84,9 @@ def get_task_config(dataset_name, split, subsample, finding, transform_kwargs):
         label_fn, inv_label_fn = get_label_fn({"1": 1, "0": 2})
         return {
             "path_to_labels": tsv_path_for_dataset(dataset_name, split),
-            "path_to_images": os.environ["CXR8IMAGES"], 
+            "path_to_images": os.environ["CXR8IMAGES"],
             "transform": transform_for_dataset(dataset_name, split, transform_kwargs),
             "subsample": subsample,
             "finding": finding,
             "label_type": int,
         }
-

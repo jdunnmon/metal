@@ -6,6 +6,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 
+from metal.mmtl.modules import get_base_module
 from metal.utils import move_to_device, recursive_merge_dicts, set_seed
 
 model_defaults = {
@@ -14,6 +15,9 @@ model_defaults = {
     "verbose": True,
     "fp16": False,
     "model_weights": None,  # the path to a saved checkpoint to initialize with
+    "slice_model": False,  # if True, use SliceModel
+    # whether to delete model source model head weights while loading existing weights
+    "delete_heads": False,
 }
 
 
@@ -104,21 +108,34 @@ class MetalModel(nn.Module):
         input = move_to_device(X, self.config["device"])
         outputs = {}
         for task_name in task_names:
-            # Extra .module because of DataParallel and MetalModule wrappers!
-            # TODO: get base module for caching in a more principled way
+            # Use get_base_module to remove MetalModel and DataParallel wrppaers in cache keys
+            # Handling input module with caching
             input_module = self.input_modules[task_name]
-            if input_module.module.module not in outputs:
-                outputs[input_module.module.module] = input_module(input)
+            input_base_module = get_base_module(input_module)
+            if input_base_module not in outputs:
+                outputs[get_base_module(input_module)] = input_module(input)
+
+            # Handling middle module with caching
             middle_module = self.middle_modules[task_name]
-            if middle_module.module.module not in outputs:
-                outputs[middle_module.module.module] = middle_module(outputs[input_module.module.module])
+            middle_base_module = get_base_module(middle_module)
+            if middle_base_module not in outputs:
+                outputs[middle_base_module] = middle_module(outputs[input_base_module])
+
+            # Handling attention module with caching
             attention_module = self.attention_modules[task_name]
-            if attention_module.module.module not in outputs:
-                outputs[attention_module.module.module] = attention_module(outputs[middle_module.module.module])
+            attention_base_module = get_base_module(attention_module)
+            if attention_base_module not in outputs:
+                outputs[attention_base_module] = attention_module(
+                    outputs[middle_base_module]
+                )
+
+            # Handling head modules with caching (this may not be necessary)
             head_module = self.head_modules[task_name]
-            if head_module.module.module not in outputs:
-                outputs[head_module.module.module] = head_module(outputs[attention_module.module.module])
-        return {t: outputs[self.head_modules[t].module.module] for t in task_names}
+            head_base_module = get_base_module(head_module)
+            if head_base_module not in outputs:
+                outputs[head_base_module] = head_module(outputs[attention_base_module])
+
+        return {t: outputs[get_base_module(self.head_modules[t])] for t in task_names}
 
     def calculate_loss(self, X, Ys, payload_name, labels_to_tasks):
         """Returns a dict of {task_name: loss (a FloatTensor scalar)}.
@@ -135,6 +152,8 @@ class MetalModel(nn.Module):
         count_dict = {}  # Stores the number of active examples by task
 
         for label_name, task_name in labels_to_tasks.items():
+            if task_name is None:
+                continue
             loss_name = f"{task_name}/{payload_name}/{label_name}/loss"
             Y = Ys[label_name]
             out = outputs[task_name]
@@ -195,7 +214,7 @@ class MetalModel(nn.Module):
         """Updates self.config with the values in a given update dictionary."""
         self.config = recursive_merge_dicts(self.config, update_dict)
 
-    def load_weights(self, model_path):
+    def load_weights(self, model_path, delete_heads=False):
         """Load model weights from checkpoint."""
         if self.config["device"] >= 0:
             device = torch.device(f"cuda:{self.config['device']}")
@@ -205,9 +224,25 @@ class MetalModel(nn.Module):
             self.load_state_dict(torch.load(model_path, map_location=device)["model"])
         except RuntimeError:
             print("Your destination state dict has different keys for the update key.")
-            self.load_state_dict(
-                torch.load(model_path, map_location=device)["model"], strict=False
-            )
+            try:
+                source_state_dict = torch.load(model_path, map_location=device)["model"]
+                self.load_state_dict(source_state_dict, strict=False)
+
+            except RuntimeError:
+                # use the slicing hack to delete existing heads
+                if self.config["delete_heads"]:
+                    warnings.warn(
+                        "SLICING HACK: Attemping to remove heads in source state dict."
+                        "You MUST fine-tune the model to recover original performance."
+                    )
+
+                    for module in list(source_state_dict.keys()):
+                        if "head_modules" in module:
+                            msg = f"Deleting {module} from loaded weights"
+                            warnings.warn(msg)
+                            del source_state_dict[module]
+
+                    self.load_state_dict(source_state_dict, strict=False)
 
     def save_weights(self, model_path):
         """Saves weight in checkpoint directory"""
@@ -262,6 +297,9 @@ class MetalModel(nn.Module):
 
         metrics_dict = {}
         for label_name, task_name in payload.labels_to_tasks.items():
+            if task_name is None:
+                continue
+
             scorer = self.task_map[task_name].scorer
             task_metrics_dict = scorer.score(
                 Ys[label_name],
@@ -319,6 +357,12 @@ class MetalModel(nn.Module):
         validate_targets(payload, target_tasks, target_labels)
         if target_tasks is None:
             target_tasks = set(payload.labels_to_tasks.values())
+
+        # filter tasks that are None (if we don't want to evaluate a particular labelset)
+        target_tasks = [t for t in target_tasks if t is not None]
+
+        if target_labels is None:
+            target_labels = set(payload.labels_to_tasks.keys())
 
         Ys = defaultdict(list)
         Ys_probs = defaultdict(list)
@@ -381,7 +425,7 @@ class MetalModel(nn.Module):
         """
         self.eval()
         _, Ys_probs, Ys_preds = self.predict_with_gold(
-            payload, task_name, return_preds=True, **kwargs
+            payload, [task_name], return_preds=True, **kwargs
         )
         Y_probs = Ys_probs[task_name]
         Y_preds = Ys_preds[task_name]

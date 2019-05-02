@@ -4,6 +4,7 @@ import scipy.sparse as sparse
 
 from metal.utils import convert_labels
 
+
 ############################################################
 # Label Matrix Plotting
 ############################################################

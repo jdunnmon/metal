@@ -1,10 +1,19 @@
 import warnings
 
+import numpy as np
 import spacy
 import torch
 
+from metal.utils import convert_labels
+
 question_words = set(["who", "what", "where", "when", "why", "how"])
 nlp = spacy.load("en_core_web_sm")
+
+
+def BASE(dataset, idx):
+    # Always returns True -- used to train a copy fo the base_labelset
+    # NOTE/HACK: MUST be named "BASE" to match task definition
+    return True
 
 
 def more_people(dataset, idx):
@@ -27,6 +36,177 @@ def more_people(dataset, idx):
             people += 1
             break
     return people > 1
+
+
+def short_premise(dataset, idx, thresh=15):
+    return len(dataset.sentences[idx][0].split()) < thresh
+
+
+def short_hypothesis(dataset, idx, thresh=5):
+    return len(dataset.sentences[idx][1].split()) < thresh
+
+
+def long_hypothesis(dataset, idx, thresh=15):
+    return len(dataset.sentences[idx][1].split()) > thresh
+
+
+def long_premise(dataset, idx, thresh=100):
+    return len(dataset.sentences[idx][0].split()) > thresh
+
+
+def has_wh_words(dataset, idx):
+    words = ["who", "what", "where", "when", "why", "how"]
+    both_sentences = dataset.sentences[idx][0] + " " + dataset.sentences[idx][1]
+    return any([x in both_sentences for x in words])
+
+
+def has_coordinating_conjunction_hypothesis(dataset, idx):
+    words = ["and", "but", "or"]
+    hypothesis = dataset.sentences[idx][1]
+    return any([p in hypothesis for p in words])
+
+
+def has_but(dataset, idx):
+    both_sentences = dataset.sentences[idx][0] + " " + dataset.sentences[idx][1]
+    return "but" in both_sentences
+
+
+def has_multiple_articles(dataset, idx):
+    both_sentences = dataset.sentences[idx][0] + " " + dataset.sentences[idx][1]
+    multiple_a = sum([int(x == "a") for x in both_sentences.split()]) > 1
+    multiple_the = sum([int(x == "a") for x in both_sentences.split()]) > 1
+    return multiple_a or multiple_the
+
+
+def has_numerical_date(dataset, idx):
+    both_sentences = dataset.sentences[idx][0] + " " + dataset.sentences[idx][1]
+    doc = nlp(both_sentences)
+    return any(
+        [x_ent.label_ == "DATE" and x.like_num for x, x_ent in zip(doc, doc.ents)]
+    )
+
+
+def is_quantification(dataset, idx):
+    words = ["all", "some", "none"]
+    both_sentences = dataset.sentences[idx][0] + " " + dataset.sentences[idx][1]
+    return any([p in both_sentences for p in words])
+
+
+def is_spatial_expression(dataset, idx):
+    words = ["to the left of", "to the right of"]
+    both_sentences = dataset.sentences[idx][0] + " " + dataset.sentences[idx][1]
+    return any([p in both_sentences for p in words])
+
+
+def is_quantification_hypothesis(dataset, idx):
+    words = ["all", "some", "none"]
+    hypothesis = dataset.sentences[idx][1]
+    return any([p in hypothesis for p in words])
+
+
+def is_comparative(dataset, idx):
+    comparative_words = ["more", "less", "better", "worse", "bigger", "smaller"]
+    both_sentences = dataset.sentences[idx][0] + " " + dataset.sentences[idx][1]
+    return any([p in both_sentences for p in comparative_words])
+
+
+def has_non_spatial_preposition(dataset, idx):
+    non_spatial_prepositions = [
+        "about",
+        "after",
+        "all over",
+        "along",
+        "among",
+        "around",
+        "before",
+        "for",
+        "from",
+        "past",
+        "through",
+        "to",
+        "with",
+        "without",
+    ]
+    both_sentences = dataset.sentences[idx][0] + " " + dataset.sentences[idx][1]
+    return any([p in both_sentences for p in non_spatial_prepositions])
+
+
+def has_spatial_preposition(dataset, idx):
+    spatial_prepositions = [
+        "above",
+        "aross",
+        "ahead of",
+        "along",
+        "around",
+        "at",
+        "behind",
+        "below",
+        "beneath",
+        "beside",
+        "by",
+        "in",
+        "in front of",
+        "inside",
+        "inside of",
+        "into",
+        "near",
+        "nearby",
+        "next to",
+        "on",
+        "on top of",
+        "out of",
+        "out of" "outside",
+        "outside of",
+        "over",
+        "through",
+        "under",
+        "up",
+        "within",
+        "with" "without",
+    ]
+    both_sentences = dataset.sentences[idx][0] + " " + dataset.sentences[idx][1]
+    return any([p in both_sentences for p in spatial_prepositions])
+
+
+def has_temporal_preposition(dataset, idx):
+    temporal_prepositions = ["after", "before", "past"]
+    both_sentences = dataset.sentences[idx][0] + " " + dataset.sentences[idx][1]
+    return any([p in both_sentences for p in temporal_prepositions])
+
+
+def has_possessive_preposition(dataset, idx):
+    possessive_prepositions = ["inside of", "with", "within"]
+    both_sentences = dataset.sentences[idx][0] + " " + dataset.sentences[idx][1]
+    return any([p in both_sentences for p in possessive_prepositions])
+
+
+def common_negation(dataset, idx):
+    negation_words = [
+        # https://www.grammarly.com/blog/negatives/
+        "no",
+        "not",
+        "none",
+        "no one",
+        "nobody",
+        "nothing",
+        "neither",
+        "nowhere",
+        "never",
+        "hardly",
+        "scarecly",
+        "barely",
+        "doesn't",
+        "isn't",
+        "wasn't",
+        "shouldn't",
+        "wouldn't",
+        "couldn't",
+        "won't",
+        "can't",
+        "don't",
+    ]
+    both_sentences = dataset.sentences[idx][0] + " " + dataset.sentences[idx][1]
+    return any([x in negation_words for x in both_sentences.split()])
 
 
 def entity_secondonly(dataset, idx):
@@ -116,4 +296,7 @@ def create_slice_labels(dataset, base_task_name, slice_name, verbose=False):
             print(f"Found {sum(slice_indicators)} examples in slice {slice_name}.")
 
     # NOTE: we assume here that all slice labels are for sentence-level tasks only
-    return Y_slice
+    # convert from True/False mask -> 1,2 categorical labels
+    categorical_indicator = convert_labels(slice_indicators, "onezero", "categorical")
+
+    return {"ind": categorical_indicator, "pred": Y_slice}

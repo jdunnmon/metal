@@ -124,7 +124,7 @@ def convert_labels(Y, source, target):
         assert Y.dtype == np.int64
     elif isinstance(Y, torch.Tensor):
         Y = Y.clone()
-        assert np.sum(Y.numpy() - Y.numpy().astype(int)) == 0.0
+        assert np.sum(Y.cpu().numpy() - Y.cpu().numpy().astype(int)) == 0.0
     else:
         raise ValueError("Unrecognized label data type.")
     negative_map = {"categorical": 2, "plusminus": -1, "onezero": 0}
@@ -518,4 +518,4 @@ def set_seed(seed):
         torch.backends.cudnn.enabled = True  # Is this necessary?
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = False
-        #torch.cuda.manual_seed(seed)
+        # torch.cuda.manual_seed(seed)

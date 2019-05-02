@@ -91,8 +91,8 @@ class LogWriter(object):
             config = self._sanitize_config(config)
             json.dump(config, f, indent=1)
 
-    def write_metrics(self, metrics):
-        metrics_path = os.path.join(self.log_subdir, "metrics.json")
+    def write_metrics(self, metrics, filename="metrics.json"):
+        metrics_path = os.path.join(self.log_subdir, filename)
         if self.verbose:
             print(f"Writing metrics to {metrics_path}")
         with open(metrics_path, "w") as f:

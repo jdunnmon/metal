@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 
 
@@ -49,21 +50,23 @@ class Payload(object):
             )
         elif label_list is not None:
             assert label_fn is None
-            assert isinstance(label_list, torch.Tensor)
+            assert isinstance(label_list, torch.Tensor) or isinstance(
+                label_list, np.ndarray
+            )
             new_labels = label_list
         else:
             raise ValueError("Incorrect label object type -- supply list or function")
 
-        if new_labels.dim() < 2:
-            raise Exception("New label_set must have at least two dimensions: [n, ?]")
+        # if new_labels.dim() < 2:
+        #    raise Exception("New label_set must have at least two dimensions: [n, ?]")
 
         self.data_loader.dataset.labels[task_name] = new_labels
         self.labels_to_tasks[label_name] = task_name
 
         if verbose:
-            active = torch.any(new_labels != 0, dim=1)
+            active = np.array([a != 0 for a in new_labels])
             msg = (
-                f"Added label_set with {sum(active.long())}/{len(active)} labels for "
+                f"Added label_set with {sum(active)}/{len(active)} labels for "
                 f"task {task_name} to payload {self.name}."
             )
             print(msg)
@@ -78,13 +81,31 @@ class Payload(object):
                 f"Removed label_set {label_name} for task {task_name} from payload {self.name}."
             )
 
-    def retarget_labelset(self, label_name, task_name, verbose=True):
+    def _retarget_labelset(self, label_name, task_name, verbose=True):
         """Retargets a labelset to the specified task name (in labels_to_tasks). """
 
         old_task = self.labels_to_tasks[label_name]
-        self.labels_to_tasks[label_name] = task_name
-        if verbose:
-            print(
-                f"label_set {label_name} now points to task {self.labels_to_tasks[label_name]} "
-                f"(originally, {old_task})."
-            )
+        if old_task != task_name:
+            self.labels_to_tasks[label_name] = task_name
+            if verbose:
+                print(
+                    f"labelset '{label_name}' -> task '{self.labels_to_tasks[label_name]}' "
+                    f"(originally, {old_task})."
+                )
+
+    def remap_labelsets(self, labels_to_tasks):
+        """ Remaps payload.labels_to_tasks based on specified dictionary. All other
+            defaults to `labelset` -> `None`.
+
+        Args:
+            labels_to_heads: if specified, remaps (in-place) labelsets to specified
+                task heads.
+
+        """
+        test_labelsets = self.labels_to_tasks.keys()
+        for label_name in test_labelsets:
+            if label_name in labels_to_tasks:
+                new_task = labels_to_tasks[label_name]
+                self._retarget_labelset(label_name, new_task)
+            else:
+                self._retarget_labelset(label_name, None)
