@@ -120,10 +120,9 @@ class SliceModel(MetalModel):
         input = move_to_device(X, self.config["device"])
         base_task_name = self.base_task.name
 
-        # Extra .module because of DataParallel wrapper!
-        input_module = self.input_modules[base_task_name].module
-        middle_module = self.middle_modules[base_task_name].module
-        attention_module = self.attention_modules[base_task_name].module
+        input_module = self.input_modules[base_task_name]
+        middle_module = self.middle_modules[base_task_name]
+        attention_module = self.attention_modules[base_task_name]
 
         out = attention_module(middle_module(input_module(input)))
         return out
