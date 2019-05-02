@@ -120,6 +120,8 @@ trainer_defaults = {
         "score_every": -1.0,
         "log_lr": True,  # If True, also log learning rate whenever loss is logged
     },
+    # Train Schedule Plan
+    "train_schedule_plan" : None,
     # LogWriter/Tensorboard (see metal/logging/writer.py for descriptions)
     "writer": None,  # [None, "json", "tensorboard"]
     "writer_config": {  # Log (or event) file stored at log_dir/run_dir/run_name

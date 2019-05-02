@@ -85,6 +85,14 @@ if __name__ == "__main__":
         ),
     )
 
+    # Fine tuning with schedule plan
+    parser.add_argument(
+        "--fine_tune",
+        type=str,
+        default=None,
+        help="Comma separated list of tasks to fine tune"
+        )
+
     parser = add_flags_from_config(parser, trainer_defaults)
     parser = add_flags_from_config(parser, model_defaults)
     parser = add_flags_from_config(parser, task_defaults)
@@ -137,8 +145,6 @@ if __name__ == "__main__":
     # Getting tasks
     tasks, payloads = create_tasks_and_payloads(task_names, **task_config)
 
-    # TEST ASSERT FOR TASKS = TASKS IN PAYLOADS
-    # np.array_equal(np.array([t.name for t in tasks]), np.array(payloads[0].task_names))
     model_config["verbose"] = False
     if model_config["slice_model"]:
         print("Initializing SliceModel...")
@@ -152,6 +158,17 @@ if __name__ == "__main__":
     if args.model_weights:
         model.load_weights(args.model_weights)
 
+    # Defining training schedule
+    if args.fine_tune:
+        tasks_to_tune = args.fine_tune.split(',')
+        tasks_to_freeze = [t.name for t in tasks if t.name not in tasks_to_tune]
+        trainer_config["train_schedule_plan"] = {
+                "plan": {
+                    "-1": tasks_to_freeze,
+                    },
+                "freeze": "all",
+                }
+                
     # add metadata to trainer_config that will be logged to disk
     trainer_config["n_parameters"] = sum(
         p.numel() for p in model.parameters() if p.requires_grad
@@ -180,7 +197,7 @@ if __name__ == "__main__":
     trainer.writer.write_config(task_config, "task_config")
 
     if not args.slice_eval:
-        trainer.train_model(model, payloads)
+        trainer.train_model(model, payloads, train_schedule_plan=trainer_config['train_schedule_plan'])
     else:
         print("Running slice evaluation only...")
         # Writing output to log where model path was
