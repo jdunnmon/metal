@@ -1,9 +1,10 @@
 import cxr_dataset as CXR
 import pandas as pd
 import torch
-from metal.end_model import EndModel
 from torch import nn
 from torchvision import transforms
+
+from metal.end_model import EndModel
 
 
 def fetch_dataloader(

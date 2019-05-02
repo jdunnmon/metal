@@ -1,21 +1,18 @@
 writer_config = {
-        'log_dir' : './slice_run_logs/CXR8-DRAIN',
-        'run_name' : 'test',
-        #'include_config': True,
-        }
-
-tuner_config = {
-        'max_search': 15,
-        'seed':123,
-        'include_config':True,
+    "log_dir": "./slice_run_logs/CXR8-DRAIN",
+    "run_name": "test",
+    #'include_config': True,
 }
 
+tuner_config = {"max_search": 15, "seed": 123, "include_config": True}
+
 search_space = {
-        'l2': {'range': [0.000001, 0.001], 'scale':'log'},           # linear range
-        'lr': {'range': [0.0001, 0.01], 'scale': 'log'},  # log range
-        # 'l2': [1.826899859912767e-05],
-        # 'lr': [0.0003294833709327656]
-        }
+    "l2": {"range": [0.000_001, 0.001], "scale": "log"},  # linear range
+    "lr": {"range": [0.0001, 0.01], "scale": "log"},  # log range
+    # 'l2': [1.826899859912767e-05],
+    # 'lr': [0.0003294833709327656]
+}
+
 
 def flip_pos_neg_labs(x):
     if x == 2:
@@ -26,6 +23,7 @@ def flip_pos_neg_labs(x):
         return 0
     else:
         raise ValueError(f"Unrecognized label value {x}")
+
 
 em_config = {
     # GENERAL
@@ -64,27 +62,24 @@ em_config = {
     "label_transform": {"DRAIN": flip_pos_neg_labs},
     # TRAINING
     "train_config": {
-         # Loss function config
+        # Loss function config
         "loss_fn_reduction": "sum",
         # Display
         "print_every": 1,  # Print after this many epochs
         "disable_prog_bar": False,  # Disable progress bar each epoch
         # Dataloader
-        "data_loader_config": {"batch_size": 16, 
-                                "num_workers": 8, 
-                                "sampler": None,
-        },
-       # Loss weights
+        "data_loader_config": {"batch_size": 16, "num_workers": 8, "sampler": None},
+        # Loss weights
         "loss_weights": [0.66, 0.33],
         # Train Loop
         "n_epochs": 20,
         # 'grad_clip': 0.0,
-         "l2": 0.0,
-         #"lr": 0.01,
+        "l2": 0.0,
+        # "lr": 0.01,
         "validation_metric": "f1",
         "validation_freq": 1,
         "validation_scoring_kwargs": {},
-        "log_valid_metrics":['accuracy','f1'],
+        "log_valid_metrics": ["accuracy", "f1"],
         # Evaluate dev for during training every this many epochs
         # Optimizer
         "optimizer_config": {
@@ -115,7 +110,7 @@ em_config = {
         "checkpoint": True,
         "checkpoint_config": {
             "checkpoint_min": -1,
-            "checkpoint_metric":'f1',
+            "checkpoint_metric": "f1",
             # The initial best score to beat to merit checkpointing
             "checkpoint_runway": 0,
             # Don't start taking checkpoints until after this many epochs

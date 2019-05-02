@@ -1,11 +1,11 @@
 import copy
 import os
+import pickle
 import random
 import warnings
 from collections import defaultdict
 from pprint import pprint
 from shutil import copy2
-import pickle
 
 import dill
 import numpy as np
@@ -204,7 +204,7 @@ class MultitaskTrainer(object):
         self._set_lr_scheduler(model)  # TODO: Support more detailed training schedules
         self._set_task_scheduler(model, payloads)
 
-        # Record config 
+        # Record config
         if self.writer:
             self.writer.write_config(self.config)
 
@@ -799,12 +799,12 @@ class MultitaskTrainer(object):
                 if min_lr and optimizer_to_use.param_groups[0]["lr"] < min_lr:
                     optimizer_to_use.param_groups[0]["lr"] = min_lr
                 # Only updating every epoch!
-                if score is not None and not (step % (self.batches_per_epoch-1)):
+                if score is not None and not (step % (self.batches_per_epoch - 1)):
                     lr = optimizer_to_use.param_groups[0]["lr"]
                     self.lr_scheduler.step(score)
                     lr_new = optimizer_to_use.param_groups[0]["lr"]
                     if lr != lr_new:
-                        print(f'Updated lr from {lr} to {lr_new}')
+                        print(f"Updated lr from {lr} to {lr_new}")
             # Iteration-based scheduler(s)
             else:
                 self.lr_scheduler.step()
@@ -895,7 +895,6 @@ class MultitaskTrainer(object):
         assert isinstance(self.config["metrics_config"]["task_metrics"], list)
         assert isinstance(self.config["metrics_config"]["aggregate_metric_fns"], list)
 
-
     @torch.no_grad()
     def _calculate_valid_losses(self, model, payloads, split, max_examples=0):
         """
@@ -922,12 +921,14 @@ class MultitaskTrainer(object):
         # Note that if max_examples > 0, some tasks may be underrepresented in the first
         # max_examples examples.
         task_scheduler = ProportionalScheduler(model, payloads, split)
-        for batch, payload_name, labels_to_tasks in task_scheduler.get_batches(payloads, split):
+        for batch, payload_name, labels_to_tasks in task_scheduler.get_batches(
+            payloads, split
+        ):
             _, Ys = batch
             batch_size = len(next(iter(Ys.values())))
             loss_dict, count_dict = model.calculate_loss(
-                    *batch, payload_name, labels_to_tasks
-                )
+                *batch, payload_name, labels_to_tasks
+            )
             for task_name, loss in loss_dict.items():
                 if count_dict[task_name]:
                     task_losses[task_name] += loss.item() * count_dict[task_name]

@@ -25,14 +25,16 @@ def validate_slice_tasks(tasks, base_task=None):
         if len(base_tasks) != 1:
             raise ValueError(f"SliceModel only supports 1 base task.")
         base_task = base_tasks[0]
- 
+
     # No check yet, but right now assume only slices for one task
     slice_tasks = [t for t in tasks if t.slice_head_type]
 
     # validate shared body representations
     # TODO: clean up these checks
     for t in slice_tasks:
-        same_input = unwrap_module(t.input_module) is unwrap_module(base_task.input_module)
+        same_input = unwrap_module(t.input_module) is unwrap_module(
+            base_task.input_module
+        )
         same_middle = (
             (t.middle_module is None and base_task.middle_module is None)
             or t.middle_module is base_task.middle_module
@@ -92,7 +94,9 @@ class SliceModel(MetalModel):
 
         # Critical that pred tasks does not include the base task!
         self.pred_tasks = {
-           name: t for name, t in self.task_map.items() if ((t.slice_head_type is None) and (t is not self.base_task))
+            name: t
+            for name, t in self.task_map.items()
+            if ((t.slice_head_type is None) and (t is not self.base_task))
         }
         self.slice_pred_tasks = {
             name: t for name, t in self.task_map.items() if t.slice_head_type == "pred"
@@ -155,11 +159,9 @@ class SliceModel(MetalModel):
         the base_task head. """
 
         # First, running through the non-sliced tasks
-        pred_names = sorted( 
-            [task_name for task_name in self.pred_tasks.keys()]
-        )  
+        pred_names = sorted([task_name for task_name in self.pred_tasks.keys()])
 
-        pred_heads = super(SliceModel,self).forward(X, pred_names)
+        pred_heads = super(SliceModel, self).forward(X, pred_names)
         # Sort names to ensure that the representation is always
         # computed in the same order
         slice_pred_names = sorted(
@@ -172,7 +174,7 @@ class SliceModel(MetalModel):
 
         body = self.forward_body(X)
         slice_pred_heads = self.forward_heads(body, slice_pred_names)
-        slice_ind_heads = self.forward_heads(body, slice_ind_names) 
+        slice_ind_heads = self.forward_heads(body, slice_ind_names)
 
         # [batch_size, num_slices] unnormalized attention weights.
         # we then normalize the weights across all heads

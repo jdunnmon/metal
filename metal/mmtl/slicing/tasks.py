@@ -50,7 +50,7 @@ def convert_to_slicing_tasks(tasks):
                     head_module,
                     slice_head_type=None,
                     loss_multiplier=t.loss_multiplier,
-                    scorer=t.scorer
+                    scorer=t.scorer,
                 )
             else:
                 slice_t = BinaryClassificationTask(

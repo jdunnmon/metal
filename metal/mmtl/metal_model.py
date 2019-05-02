@@ -6,8 +6,8 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from metal.utils import move_to_device, recursive_merge_dicts, set_seed
 from metal.mmtl.modules import get_base_module
+from metal.utils import move_to_device, recursive_merge_dicts, set_seed
 
 model_defaults = {
     "seed": None,
@@ -15,9 +15,9 @@ model_defaults = {
     "verbose": True,
     "fp16": False,
     "model_weights": None,  # the path to a saved checkpoint to initialize with
-    "slice_model":False, # if True, use SliceModel
+    "slice_model": False,  # if True, use SliceModel
     # whether to delete model source model head weights while loading existing weights
-    "delete_heads": False, 
+    "delete_heads": False,
 }
 
 
@@ -125,7 +125,9 @@ class MetalModel(nn.Module):
             attention_module = self.attention_modules[task_name]
             attention_base_module = get_base_module(attention_module)
             if attention_base_module not in outputs:
-                outputs[attention_base_module] = attention_module(outputs[middle_base_module])
+                outputs[attention_base_module] = attention_module(
+                    outputs[middle_base_module]
+                )
 
             # Handling head modules with caching (this may not be necessary)
             head_module = self.head_modules[task_name]
@@ -211,7 +213,7 @@ class MetalModel(nn.Module):
     def update_config(self, update_dict):
         """Updates self.config with the values in a given update dictionary."""
         self.config = recursive_merge_dicts(self.config, update_dict)
-       
+
     def load_weights(self, model_path, delete_heads=False):
         """Load model weights from checkpoint."""
         if self.config["device"] >= 0:
@@ -240,7 +242,7 @@ class MetalModel(nn.Module):
                             warnings.warn(msg)
                             del source_state_dict[module]
 
-                    self.load_state_dict(source_state_dict, strict=False) 
+                    self.load_state_dict(source_state_dict, strict=False)
 
     def save_weights(self, model_path):
         """Saves weight in checkpoint directory"""

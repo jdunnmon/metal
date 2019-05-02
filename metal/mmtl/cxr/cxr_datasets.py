@@ -4,14 +4,15 @@ from collections import defaultdict
 
 import numpy as np
 import pandas as pd
-from PIL import Image
 import torch
-from torch.utils.data import Dataset, DataLoader
+from PIL import Image
+from torch.utils.data import DataLoader, Dataset
 from torch.utils.data.sampler import Sampler, SubsetRandomSampler
 from tqdm import tqdm
 
 from metal.mmtl.cxr.cxr_preprocess import get_task_config
 from metal.utils import padded_tensor, set_seed
+
 
 class CXR8Dataset(Dataset):
     """
@@ -26,7 +27,7 @@ class CXR8Dataset(Dataset):
         path_to_images,
         path_to_labels,
         split,
-        transform=None, # Currently no support for this
+        transform=None,  # Currently no support for this
         subsample=0,
         finding="ALL",
         dataset_name="CXR8",
@@ -36,14 +37,14 @@ class CXR8Dataset(Dataset):
         single_task=None,
         return_dict=True,
         label_transform={},
-        seed=None
+        seed=None,
     ):
 
         self.transform = transform
         self.path_to_images = path_to_images
         self.path_to_labels = path_to_labels
         self.split = split
-        self.df = pd.read_csv(self.path_to_labels, sep='\t')
+        self.df = pd.read_csv(self.path_to_labels, sep="\t")
         self.df.columns = map(str.upper, self.df.columns)
         self.get_uid = get_uid
         self.labels = {}
@@ -70,7 +71,7 @@ class CXR8Dataset(Dataset):
                 if len(self.df[self.df[finding] == 1]) > 0:
                     self.df = self.df[self.df[finding] == 1]
                 else:
-                   raise ValueError(
+                    raise ValueError(
                         "No positive cases exist for "
                         + LABEL
                         + ", returning all unfiltered cases"
@@ -103,7 +104,7 @@ class CXR8Dataset(Dataset):
 
         classes = self.PRED_LABEL
         if slice_labels is not None:
-            if isinstance(slice_labels,str):
+            if isinstance(slice_labels, str):
                 slice_labels = [slice_labels]
             classes = classes + slice_labels
 
@@ -113,20 +114,19 @@ class CXR8Dataset(Dataset):
             cls_upper = cls.upper().strip()
             label_vec = (self.df[cls_upper].astype(int) > 0).astype(int)
             # Converting to metal format: 0 abstain, 2 negative
-            label_vec[label_vec==0] = 2
+            label_vec[label_vec == 0] = 2
             if cls_upper in self.label_transform.keys():
                 print(f"Transforming labels for {cls} class")
                 label_vec = [self.label_transform[cls_upper](l) for l in label_vec]
-            #label_set = torch.tensor(label_vec).int()
-            #if label_set.dim()<2:
+            # label_set = torch.tensor(label_vec).int()
+            # if label_set.dim()<2:
             #    label_set = label_set[:,None]
-            
+
             label_set = np.array(label_vec).astype(int)
             if self.pooled:
                 self.labels[cls_uppper] = label_set
             else:
                 self.labels[f"{self.dataset_name}_{cls_upper}"] = label_set
-
 
     def __getitem__(self, idx):
 
@@ -136,7 +136,6 @@ class CXR8Dataset(Dataset):
         if self.transform:
             image = self.transform(image)
 
-       
         if self.return_dict:
             x = {"data": image}
         else:
@@ -144,11 +143,16 @@ class CXR8Dataset(Dataset):
 
         # If statement to train classifiers for single tasks outside mmtl
         if self.single_task is not None:
-            ky = f"{self.dataset_name}_{self.single_task.upper()}" if not self.pooled else self.single_task.upper()
+            ky = (
+                f"{self.dataset_name}_{self.single_task.upper()}"
+                if not self.pooled
+                else self.single_task.upper()
+            )
             ys = self.labels[ky][idx]
         else:
             ys = {
-                task_name: label_set[idx] for task_name, label_set in self.labels.items() 
+                task_name: label_set[idx]
+                for task_name, label_set in self.labels.items()
             }
         uid = self.df.index[idx]
 
@@ -163,21 +167,21 @@ class CXR8Dataset(Dataset):
     def get_dataloader(self, split_prop=None, split_seed=123, **kwargs):
         """Returns a dataloader based on self (dataset). If split_prop is specified,
         returns a split dataset assuming train -> split_prop and dev -> 1 - split_prop."""
-            
+
         if split_prop:
             assert split_prop > 0 and split_prop < 1
-            
+
             # choose random indexes for train/dev
             N = len(self)
             full_idx = np.arange(N)
             set_seed(split_seed)
             np.random.shuffle(full_idx)
-            
+
             # split into train/dev
             split_div = int(split_prop * N)
             train_idx = full_idx[:split_div]
             dev_idx = full_idx[split_div:]
-            
+
             # create data loaders
             train_dataloader = DataLoader(
                 self,
@@ -185,7 +189,7 @@ class CXR8Dataset(Dataset):
                 sampler=SubsetRandomSampler(train_idx),
                 **kwargs,
             )
-            
+
             dev_dataloader = DataLoader(
                 self,
                 collate_fn=self._collate_fn,
@@ -198,7 +202,7 @@ class CXR8Dataset(Dataset):
         else:
             return DataLoader(self, collate_fn=self._collate_fn, **kwargs)
 
-    def _collate_fn(self, batch_list): 
+    def _collate_fn(self, batch_list):
         """Collates batch of (images, labels) into padded (X, Ys) tensors
 
         Args:
@@ -215,7 +219,7 @@ class CXR8Dataset(Dataset):
             if self.get_uid:
                 x, ys, uid = instance
             else:
-                x, ys= instance
+                x, ys = instance
 
             if self.return_dict:
                 image = x["data"]
@@ -225,10 +229,10 @@ class CXR8Dataset(Dataset):
             for task_name, y in ys.items():
                 Y_lists[task_name].append(y)
             X_list.append(image)
-            
+
             if self.get_uid:
                 uid_list.append(uid)
-        
+
         if self.return_dict:
             Xs = {"data": torch.stack(X_list)}
         else:
@@ -264,11 +268,11 @@ class CXR8Dataset(Dataset):
                 Y = torch.from_numpy(np.array(Y))
             elif isinstance(Y[0], np.float):
                 Y = torch.from_numpy(np.array(Y))
-            #elif (
+            # elif (
             #    isinstance(Y[0], list)
             #    or isinstance(Y[0], np.ndarray)
             #    or isinstance(Y[0], torch.Tensor)
-            #):
+            # ):
             #    Y = padded_tensor(Y)
             else:
                 msg = f"Unrecognized dtype of label_set {label_name}: " f"{type(Y[0])}"
@@ -279,7 +283,7 @@ class CXR8Dataset(Dataset):
             Ys[label_name] = Y
         return Ys
 
-    def _collate_labels(self, Ys): 
+    def _collate_labels(self, Ys):
         """Collate potentially multiple label_sets 
  
         Args: 
@@ -296,79 +300,79 @@ class CXR8Dataset(Dataset):
             list of tensors/lists/arrays (token labels) -> [n, seq_len] padded tensor 
         """
         for task_name, Y in Ys.items():
-            if isinstance(Y[0], (int, np.int64)): 
+            if isinstance(Y[0], (int, np.int64)):
                 Y = torch.tensor(Y, dtype=torch.long)
-            elif isinstance(Y[0], torch.Tensor) and len(Y[0].size())<2:
-                Y = torch.tensor(Y, dtype=torch.float) 
+            elif isinstance(Y[0], torch.Tensor) and len(Y[0].size()) < 2:
+                Y = torch.tensor(Y, dtype=torch.float)
             elif isinstance(Y[0], np.integer):
-                Y = torch.from_numpy(np.array(Y)) 
-            elif isinstance(Y[0], float): 
-                Y = torch.tensor(Y, dtype=torch.float) 
-            elif isinstance(Y[0], np.float): 
-                Y = torch.from_numpy(Y) 
+                Y = torch.from_numpy(np.array(Y))
+            elif isinstance(Y[0], float):
+                Y = torch.tensor(Y, dtype=torch.float)
+            elif isinstance(Y[0], np.float):
+                Y = torch.from_numpy(Y)
             elif isinstance(Y[0], torch.FloatTensor):
                 Y = torch.tensor(Y, dtype=torch.long)
-            elif ( 
-                isinstance(Y[0], list) 
-                or isinstance(Y[0], np.ndarray) 
-                or isinstance(Y[0], torch.Tensor) and len(Y[0].size())>=2
-            ): 
-                if isinstance(Y[0][0], (int, np.integer)): 
-                    dtype = torch.long 
-                elif isinstance(Y[0][0], (float, np.float)): 
-                    # TODO: WARNING: this may not handle half-precision correctly! 
-                    dtype = torch.float 
-                else: 
-                    msg = ( 
+            elif (
+                isinstance(Y[0], list)
+                or isinstance(Y[0], np.ndarray)
+                or isinstance(Y[0], torch.Tensor)
+                and len(Y[0].size()) >= 2
+            ):
+                if isinstance(Y[0][0], (int, np.integer)):
+                    dtype = torch.long
+                elif isinstance(Y[0][0], (float, np.float)):
+                    # TODO: WARNING: this may not handle half-precision correctly!
+                    dtype = torch.float
+                else:
+                    msg = (
                         f"Unrecognized dtype of elements in label_set for task "
-                        f"{task_name}: {type(Y[0][0])}" 
-                    ) 
-                    raise Exception(msg) 
-                Y, _ = padded_tensor(Y, dtype=dtype) 
-            else: 
-                msg = ( 
-                    f"Unrecognized dtype of label_set for task {task_name}: " 
-                    f"{type(Y[0])}" 
-                ) 
-                raise Exception(msg) 
-            # Ensure that first dimension of Y is n 
-            if Y.dim() == 1: 
-                Y = Y.view(-1, 1) 
-            Ys[task_name] = Y 
-        return Ys 
+                        f"{task_name}: {type(Y[0][0])}"
+                    )
+                    raise Exception(msg)
+                Y, _ = padded_tensor(Y, dtype=dtype)
+            else:
+                msg = (
+                    f"Unrecognized dtype of label_set for task {task_name}: "
+                    f"{type(Y[0])}"
+                )
+                raise Exception(msg)
+            # Ensure that first dimension of Y is n
+            if Y.dim() == 1:
+                Y = Y.view(-1, 1)
+            Ys[task_name] = Y
+        return Ys
 
-DATASET_CLASS_DICT = { 
-                "CXR8": CXR8Dataset, 
-                "CXR8-DRAIN": CXR8Dataset,
-                } 
- 
- 
-def get_cxr_dataset(dataset_name, split, subsample=None, finding="ALL", pooled=False, **kwargs): 
-    """ Create and returns specified cxr dataset based on image path.""" 
- 
+
+DATASET_CLASS_DICT = {"CXR8": CXR8Dataset, "CXR8-DRAIN": CXR8Dataset}
+
+
+def get_cxr_dataset(
+    dataset_name, split, subsample=None, finding="ALL", pooled=False, **kwargs
+):
+    """ Create and returns specified cxr dataset based on image path."""
+
     # MODIFY THIS TO GET THE RIGHT LOCATIONS FOR EACH!!
     if "_" in dataset_name:
-        dataset_name = dataset_name.split('_')[0]
+        dataset_name = dataset_name.split("_")[0]
     if "_" in finding:
-        finding = finding.split('_')[1] 
-    transform_kwargs = kwargs['transform_kwargs']
-    config = get_task_config(dataset_name, split, subsample, finding, transform_kwargs) 
+        finding = finding.split("_")[1]
+    transform_kwargs = kwargs["transform_kwargs"]
+    config = get_task_config(dataset_name, split, subsample, finding, transform_kwargs)
     config["get_uid"] = kwargs.get("get_uid", False)
-    config['return_dict'] = kwargs.get('return_dict', True)
-    config["seed"] = kwargs.get('seed', None)
-    dataset_class = DATASET_CLASS_DICT[dataset_name] 
- 
-    return dataset_class( 
-        config["path_to_images"], 
-        config["path_to_labels"], 
-        split, 
-        transform=config["transform"], 
-        subsample=config["subsample"], 
-        finding=config["finding"], 
-        pooled=False, 
-        get_uid=config["get_uid"],
-        dataset_name = dataset_name,
-        return_dict = config['return_dict'],
-        seed=config["seed"]
-    ) 
+    config["return_dict"] = kwargs.get("return_dict", True)
+    config["seed"] = kwargs.get("seed", None)
+    dataset_class = DATASET_CLASS_DICT[dataset_name]
 
+    return dataset_class(
+        config["path_to_images"],
+        config["path_to_labels"],
+        split,
+        transform=config["transform"],
+        subsample=config["subsample"],
+        finding=config["finding"],
+        pooled=False,
+        get_uid=config["get_uid"],
+        dataset_name=dataset_name,
+        return_dict=config["return_dict"],
+        seed=config["seed"],
+    )
