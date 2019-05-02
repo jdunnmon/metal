@@ -38,6 +38,46 @@ def more_people(dataset, idx):
     return people > 1
 
 
+def short_premise(dataset, idx, thresh=15):
+    return len(dataset.sentences[idx][0].split()) < thresh
+
+
+def short_hypothesis(dataset, idx, thresh=5):
+    return len(dataset.sentences[idx][1].split()) < thresh
+
+
+def long_hypothesis(dataset, idx, thresh=15):
+    return len(dataset.sentences[idx][1].split()) > thresh
+
+
+def long_premise(dataset, idx, thresh=100):
+    return len(dataset.sentences[idx][0].split()) > thresh
+
+
+def has_wh_words(dataset, idx):
+    words = ["who", "what", "where", "when", "why", "how"]
+    both_sentences = dataset.sentences[idx][0] + " " + dataset.sentences[idx][1]
+    return any([x in both_sentences for x in words])
+
+
+def has_coordinating_conjunction_hypothesis(dataset, idx):
+    words = ["and", "but", "or"]
+    hypothesis = dataset.sentences[idx][1]
+    return any([p in hypothesis for p in words])
+
+
+def has_but(dataset, idx):
+    both_sentences = dataset.sentences[idx][0] + " " + dataset.sentences[idx][1]
+    return "but" in both_sentences
+
+
+def has_multiple_articles(dataset, idx):
+    both_sentences = dataset.sentences[idx][0] + " " + dataset.sentences[idx][1]
+    multiple_a = sum([int(x == "a") for x in both_sentences.split()]) > 1
+    multiple_the = sum([int(x == "a") for x in both_sentences.split()]) > 1
+    return multiple_a or multiple_the
+
+
 def has_numerical_date(dataset, idx):
     both_sentences = dataset.sentences[idx][0] + " " + dataset.sentences[idx][1]
     doc = nlp(both_sentences)
@@ -46,15 +86,98 @@ def has_numerical_date(dataset, idx):
     )
 
 
-def has_preposition(dataset, idx):
+def is_quantification(dataset, idx):
+    words = ["all", "some", "none"]
     both_sentences = dataset.sentences[idx][0] + " " + dataset.sentences[idx][1]
-    doc = nlp(both_sentences)
-    return any([x.pos_ == "ADP" for x in doc])
+    return any([p in both_sentences for p in words])
 
 
-def has_preposition_s2(dataset, idx):
-    doc = nlp(dataset.sentences[idx][1])
-    return any([x.pos_ == "ADP" for x in doc])
+def is_spatial_expression(dataset, idx):
+    words = ["to the left of", "to the right of"]
+    both_sentences = dataset.sentences[idx][0] + " " + dataset.sentences[idx][1]
+    return any([p in both_sentences for p in words])
+
+
+def is_quantification_hypothesis(dataset, idx):
+    words = ["all", "some", "none"]
+    hypothesis = dataset.sentences[idx][1]
+    return any([p in hypothesis for p in words])
+
+
+def is_comparative(dataset, idx):
+    comparative_words = ["more", "less", "better", "worse", "bigger", "smaller"]
+    both_sentences = dataset.sentences[idx][0] + " " + dataset.sentences[idx][1]
+    return any([p in both_sentences for p in comparative_words])
+
+
+def has_non_spatial_preposition(dataset, idx):
+    non_spatial_prepositions = [
+        "about",
+        "after",
+        "all over",
+        "along",
+        "among",
+        "around",
+        "before",
+        "for",
+        "from",
+        "past",
+        "through",
+        "to",
+        "with",
+        "without",
+    ]
+    both_sentences = dataset.sentences[idx][0] + " " + dataset.sentences[idx][1]
+    return any([p in both_sentences for p in non_spatial_prepositions])
+
+
+def has_spatial_preposition(dataset, idx):
+    spatial_prepositions = [
+        "above",
+        "aross",
+        "ahead of",
+        "along",
+        "around",
+        "at",
+        "behind",
+        "below",
+        "beneath",
+        "beside",
+        "by",
+        "in",
+        "in front of",
+        "inside",
+        "inside of",
+        "into",
+        "near",
+        "nearby",
+        "next to",
+        "on",
+        "on top of",
+        "out of",
+        "out of" "outside",
+        "outside of",
+        "over",
+        "through",
+        "under",
+        "up",
+        "within",
+        "with" "without",
+    ]
+    both_sentences = dataset.sentences[idx][0] + " " + dataset.sentences[idx][1]
+    return any([p in both_sentences for p in spatial_prepositions])
+
+
+def has_temporal_preposition(dataset, idx):
+    temporal_prepositions = ["after", "before", "past"]
+    both_sentences = dataset.sentences[idx][0] + " " + dataset.sentences[idx][1]
+    return any([p in both_sentences for p in temporal_prepositions])
+
+
+def has_possessive_preposition(dataset, idx):
+    possessive_prepositions = ["inside of", "with", "within"]
+    both_sentences = dataset.sentences[idx][0] + " " + dataset.sentences[idx][1]
+    return any([p in both_sentences for p in possessive_prepositions])
 
 
 def common_negation(dataset, idx):

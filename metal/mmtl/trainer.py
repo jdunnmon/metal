@@ -317,6 +317,7 @@ class MultitaskTrainer(object):
         # Calculate metrics for all splits if test_split=None
         test_split = self.config["metrics_config"]["test_split"]
         metrics_dict = self.calculate_metrics(model, payloads, split=test_split)
+        metrics_dict.update(self.calculate_metrics(model, payloads, split="train"))
         if self.config["verbose"]:
             pprint(metrics_dict)
 
@@ -460,13 +461,15 @@ class MultitaskTrainer(object):
                 splits = set(p.split for p in payloads) - set(["train"])
             else:
                 splits = [split]
+
             for loss_split in splits:
-                loss_dict = self._calculate_valid_losses(
-                    model, payloads, loss_split, max_examples=max_examples
-                )
-                for loss_name, loss_value in loss_dict.items():
-                    if loss_name in target_loss_metrics:
-                        metrics_dict[loss_name] = loss_value
+                if loss_split != "train":
+                    loss_dict = self._calculate_valid_losses(
+                        model, payloads, loss_split, max_examples=max_examples
+                    )
+                    for loss_name, loss_value in loss_dict.items():
+                        if loss_name in target_loss_metrics:
+                            metrics_dict[loss_name] = loss_value
 
         # Calculate metrics from Scorers
         for payload in payloads:
