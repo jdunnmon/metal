@@ -17,6 +17,7 @@ from torch.nn.utils import clip_grad_norm_
 from metal.logging import Checkpointer, LogWriter, TensorBoardWriter
 from metal.logging.utils import split_full_metric
 from metal.mmtl.glue.glue_metrics import GLUE_METRICS, glue_score
+from metal.mmtl.modules import get_base_module
 from metal.mmtl.mmtl_logger import Logger  # NOTE: we load special MTL logger
 from metal.mmtl.task_scheduler import ProportionalScheduler
 from metal.utils import recursive_merge_dicts, recursive_transform, set_seed
@@ -270,19 +271,19 @@ class MultitaskTrainer(object):
                     print(f"Freezing {freezed_tasks} {train_schedule_plan['freeze']}")
                     for task_name in freezed_tasks:
                         if task_name in model.input_modules:
-                            for p in model.input_modules[task_name].parameters():
+                            for p in get_base_module(model.input_modules[task_name]).parameters():
                                 p.requires_grad = False
                         if task_name in model.middle_modules:
-                            for p in model.middle_modules[task_name].parameters():
+                            for p in get_base_module(model.middle_modules[task_name]).parameters():
                                 p.requires_grad = False
                         if task_name in model.attention_modules:
-                            for p in model.attention_modules[task_name].parameters():
+                            for p in get_base_module(model.attention_modules[task_name]).parameters():
                                 p.requires_grad = False
                         if (
                             task_name in model.head_modules
                             and train_schedule_plan["freeze"] == "all"
                         ):
-                            for p in model.head_modules[task_name].parameters():
+                            for p in get_base_module(model.head_modules[task_name]).parameters():
                                 p.requires_grad = False
 
                 if batch_num == 0:
