@@ -108,19 +108,31 @@ class MetalModel(nn.Module):
         input = move_to_device(X, self.config["device"])
         outputs = {}
         for task_name in task_names:
-            # USe get_base_module to remove MetalModel and DataParallel wrppaers in cache keys
+            # Use get_base_module to remove MetalModel and DataParallel wrppaers in cache keys
+            # Handling input module with caching
             input_module = self.input_modules[task_name]
-            if get_base_module(input_module) not in outputs:
+            input_base_module = get_base_module(input_module)
+            if input_base_module not in outputs:
                 outputs[get_base_module(input_module)] = input_module(input)
+
+            # Handling middle module with caching
             middle_module = self.middle_modules[task_name]
-           if get_base_module(middle_module) not in outputs:
-                outputs[get_base_module(middle_module)] = middle_module(outputs[input_module])
+            middle_base_module = get_base_module(middle_module)
+            if middle_base_module not in outputs:
+                outputs[middle_base_module] = middle_module(outputs[input_base_module])
+
+            # Handling attention module with caching
             attention_module = self.attention_modules[task_name]
-            if get_base_module(attention_module) not in outputs:
-                outputs[get_base_module(attention_module)] = attention_module(outputs[middle_module])
-            head_module = self.head_modules[task_name].module
-            if get_base_module(head_module) not in outputs:
-                outputs[get_base_module(head_module)] = head_module(outputs[attention_module])
+            attention_base_module = get_base_module(attention_module)
+            if attention_base_module not in outputs:
+                outputs[attention_base_module] = attention_module(outputs[middle_base_module])
+
+            # Handling head modules with caching (this may not be necessary)
+            head_module = self.head_modules[task_name]
+            head_base_module = get_base_module(head_module)
+            if head_base_module not in outputs:
+                outputs[head_base_module] = head_module(outputs[attention_base_module])
+
         return {t: outputs[get_base_module(self.head_modules[t])] for t in task_names}
 
     def calculate_loss(self, X, Ys, payload_name, labels_to_tasks):

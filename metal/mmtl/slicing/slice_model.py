@@ -78,8 +78,7 @@ class SliceModel(MetalModel):
         * A single base task + an arbitrary number of slice tasks (slice_head_type != None)
     """
 
-    def __init__(self, tasks, **kwargs):
-        base_task = kwargs.get('base_task',None)
+    def __init__(self, tasks, attention_with_rep=False, base_task=None, **kwargs):
         validate_slice_tasks(tasks, base_task=base_task)
         super().__init__(tasks, **kwargs)
         if base_task is None:
