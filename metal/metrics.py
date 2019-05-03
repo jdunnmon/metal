@@ -142,7 +142,7 @@ def f1_score(gold, pred, **kwargs):
     return fbeta_score(gold, pred, beta=1.0, **kwargs)
 
 
-def roc_auc_score(gold, probs, ignore_in_gold=[], ignore_in_pred=[]):
+def roc_auc_score(gold, probs, ignore_in_gold=[], ignore_in_pred=[], return_roc=False):
     """Compute the ROC AUC score, given the gold labels and predicted probs.
 
     Args:
@@ -164,15 +164,54 @@ def roc_auc_score(gold, probs, ignore_in_gold=[], ignore_in_pred=[]):
     keep = [x not in ignore_in_gold for x in gold]
     gold = gold[keep]
     probs = probs[keep, :]
-
     # Convert gold to one-hot indicator format, using the k inferred from probs
     gold_s = pred_to_prob(torch.from_numpy(gold), k=probs.shape[1]).numpy()
     if (len(np.unique(probs)) != 1) and (len(np.unique(gold)) != 1):
-        return skm.roc_auc_score(gold_s, probs)
+        if not return_roc:
+            return skm.roc_auc_score(gold_s, probs)
+        else:
+            #Pos_label is index - for xklearn!
+            pos_probs = [p[0] for p in probs]
+            return skm.roc_curve(gold, pos_probs, pos_label=1)
     else:
         print("Warning: roc_auc_score returned 0; only one class in predictions")
         return 0
 
+def prc_auc_score(gold, probs, ignore_in_gold=[], ignore_in_pred=[], return_prc=False):
+    """Compute the ROC AUC score, given the gold labels and predicted probs.
+
+    Args:
+        gold: A 1d array-like of gold labels
+        probs: A 2d array-like of predicted probabilities
+        ignore_in_gold: A list of labels for which elements having that gold
+            label will be ignored.
+
+    Returns:
+        prc_auc_score: The (float) prc_auc score
+    """
+    gold = arraylike_to_numpy(gold)
+    probs = np.array(probs)
+
+    # Filter out the ignore_in_gold (but not ignore_in_pred)
+    # Note the current sub-functions (below) do not handle this...
+    if len(ignore_in_pred) > 0:
+        raise ValueError("ignore_in_pred not defined for PRC-AUC score.")
+    keep = [x not in ignore_in_gold for x in gold]
+    gold = gold[keep]
+    probs = probs[keep, :]
+
+    # Convert gold to one-hot indicator format, using the k inferred from probs
+    gold_s = pred_to_prob(torch.from_numpy(gold), k=probs.shape[1]).numpy()
+    if (len(np.unique(probs)) != 1) and (len(np.unique(gold)) != 1):
+        if not return_prc:
+            return skm.average_precision_score(gold_s, probs)
+        else:
+            #Pos_label is index - for xklearn!
+            pos_probs = [p[0] for p in probs]
+            return skm.precision_recall_curve(gold, pos_probs, pos_label=1)
+    else:
+        print("Warning: roc_auc_score returned 0; only one class in predictions")
+        return 0
 
 def _drop_ignored(gold, pred, ignore_in_gold, ignore_in_pred):
     """Remove from gold and pred all items with labels designated to ignore."""
@@ -203,6 +242,7 @@ METRICS = {
     "f1": f1_score,
     "fbeta": fbeta_score,
     "roc-auc": roc_auc_score,
+    "prc-auc": prc_auc_score,
 }
 
 
@@ -212,10 +252,10 @@ def metric_score(gold, pred, metric, probs=None, **kwargs):
         raise ValueError(msg)
 
     # Note special handling because requires the predicted probabilities
-    elif metric == "roc-auc":
+    elif metric in["roc-auc","prc-auc"]:
         if probs is None:
-            raise ValueError("ROC-AUC score requries the predicted probs.")
-        return roc_auc_score(gold, probs, **kwargs)
+            raise ValueError("AUC score requries the predicted probs.")
+        return METRICS[metric](gold, probs, **kwargs)
 
     else:
         return METRICS[metric](gold, pred, **kwargs)

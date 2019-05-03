@@ -76,7 +76,7 @@ task_defaults = {
     "split_prop": None,
     "splits": ["train", "valid", "test"],
     "subsample": -1,
-    "finding": "ALL",
+    "eval_finding":"ALL",
     "seed": None,
     "dl_kwargs": {
         "num_workers": 8,
@@ -196,6 +196,7 @@ def create_tasks_and_payloads(full_task_names, **kwargs):
                 subsample=config["subsample"],
                 pooled=config["pool_payload_tasks"],
                 finding=payload_finding,
+                eval_finding=config["eval_finding"], 
                 verbose=True,
                 seed=config["seed"],
                 dataset_kwargs=dataset_kwargs,
@@ -402,6 +403,7 @@ def create_cxr_datasets(
     splits,
     pooled=False,
     finding="ALL",
+    eval_finding="ALL",
     subsample=-1,
     verbose=True,
     dataset_kwargs={},
@@ -420,9 +422,12 @@ def create_cxr_datasets(
         else:
             split = split_name
         # Getting all examples for val and test!
-        if split_name != "train":
-            finding = "ALL"
+        if split_name != "train" and eval_finding:
+            print(f"Using eval finding {eval_finding}")
+            finding = eval_finding
             subsample = -1
+        else:
+            print(f"Using train finding {finding}")
         datasets[split_name] = get_cxr_dataset(
             dataset_name,
             split,
