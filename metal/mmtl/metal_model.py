@@ -328,6 +328,7 @@ class MetalModel(nn.Module):
         target_tasks=None,
         target_labels=None,
         return_preds=False,
+        return_meta=None,
         max_examples=0,
         **kwargs,
     ):
@@ -366,10 +367,15 @@ class MetalModel(nn.Module):
 
         Ys = defaultdict(list)
         Ys_probs = defaultdict(list)
+        Ys_meta = defaultdict(list)
 
         total = 0
         for batch_num, (Xb, Yb) in enumerate(payload.data_loader):
             Yb_probs = self.calculate_probs(Xb, target_tasks)
+            if return_meta:
+                for field, meta in Xb.items():
+                    if field in return_meta:
+                        Ys_meta[field].extend(meta)
             for task_name, yb_probs in Yb_probs.items():
                 Ys_probs[task_name].extend(yb_probs)
             for label_name, yb in Yb.items():
@@ -386,14 +392,19 @@ class MetalModel(nn.Module):
                 for task_name, Y_probs in Ys_probs.items()
             }
 
+        return_tuple = (Ys, Ys_probs)
+
         if return_preds:
             Ys_preds = {
                 task_name: [probs_to_preds(y_probs) for y_probs in Y_probs]
                 for task_name, Y_probs in Ys_probs.items()
             }
-            return Ys, Ys_probs, Ys_preds
-        else:
-            return Ys, Ys_probs
+            return_tuple = return_tuple + (Ys_preds,)
+           
+        if return_meta:
+            return_tuple = return_tuple + (Ys_meta,)
+
+        return return_tuple
 
     # Single-task prediction helpers (for convenience)
     @torch.no_grad()

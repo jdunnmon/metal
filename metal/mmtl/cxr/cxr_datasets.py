@@ -136,8 +136,11 @@ class CXR8Dataset(Dataset):
         if self.transform:
             image = self.transform(image)
 
+        uid = self.df.index[idx]
         if self.return_dict:
             x = {"data": image}
+            if self.get_uid:
+                x["uid"] = uid
         else:
             x = image
 
@@ -154,9 +157,8 @@ class CXR8Dataset(Dataset):
                 task_name: label_set[idx]
                 for task_name, label_set in self.labels.items()
             }
-        uid = self.df.index[idx]
-
-        if self.get_uid:
+        
+        if self.get_uid and not self.return_dict:
             return x, ys, uid
         else:
             return x, ys
@@ -216,18 +218,20 @@ class CXR8Dataset(Dataset):
         X_list = []
         uid_list = []
         for instance in batch_list:
-            if self.get_uid:
+            if self.get_uid and not self.return_dict:
                 x, ys, uid = instance
             else:
                 x, ys = instance
 
             if self.return_dict:
                 image = x["data"]
+                uid = x["uid"]
             else:
                 image = x
 
             for task_name, y in ys.items():
                 Y_lists[task_name].append(y)
+
             X_list.append(image)
 
             if self.get_uid:
@@ -235,10 +239,14 @@ class CXR8Dataset(Dataset):
 
         if self.return_dict:
             Xs = {"data": torch.stack(X_list)}
+            if self.get_uid:
+                Xs["uid"] = uid_list
         else:
             Xs = torch.stack(X_list)
+
         Ys = self._collate_labels(Y_lists)
-        if self.get_uid:
+
+        if self.get_uid and not self.return_dict:
             uids = uid_list
             return Xs, Ys, uids
         else:

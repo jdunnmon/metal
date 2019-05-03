@@ -407,7 +407,7 @@ def create_cxr_datasets(
     subsample=-1,
     verbose=True,
     dataset_kwargs={},
-    get_uid=False,
+    get_uid=True,
     return_dict=True,
     seed=None,
 ):
