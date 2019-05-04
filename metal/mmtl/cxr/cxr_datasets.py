@@ -225,7 +225,8 @@ class CXR8Dataset(Dataset):
 
             if self.return_dict:
                 image = x["data"]
-                uid = x["uid"]
+                if self.get_uid:
+                    uid = x["uid"]
             else:
                 image = x
 

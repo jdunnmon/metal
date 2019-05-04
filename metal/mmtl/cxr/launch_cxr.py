@@ -166,7 +166,7 @@ if __name__ == "__main__":
                 "plan": {
                     "-1": tasks_to_freeze,
                     },
-                "freeze": "all",
+                "freeze": trainer_config["freeze"],
                 }
                 
     # add metadata to trainer_config that will be logged to disk

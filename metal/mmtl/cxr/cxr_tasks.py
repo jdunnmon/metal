@@ -79,6 +79,7 @@ task_defaults = {
     "eval_finding":"ALL",
     "seed": None,
     "dl_kwargs": {
+        "pin_memory":False,
         "num_workers": 8,
         "batch_size": 16,
         "shuffle": True,  # Used only when split_prop is None; otherwise, use Sampler
@@ -407,7 +408,7 @@ def create_cxr_datasets(
     subsample=-1,
     verbose=True,
     dataset_kwargs={},
-    get_uid=True,
+    get_uid=False,
     return_dict=True,
     seed=None,
 ):
@@ -459,6 +460,8 @@ def create_cxr_dataloaders(datasets, dl_kwargs, split_prop, splits, seed=123):
     else:
         for split_name in datasets:
             dl_kwargs = dl_kwargs
+            if split_name != 'train':
+                dl_kwargs["shuffle"] = False
             # if split_name == 'test':
             #     dl_kwargs['num_workers'] = 0
             dataloaders[split_name] = datasets[split_name].get_dataloader(**dl_kwargs)

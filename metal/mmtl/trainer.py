@@ -108,6 +108,7 @@ trainer_defaults = {
     },
     # Task Scheduler
     "task_scheduler": "proportional",  # ["proportional", "staged"]
+    "freeze": None, #["all","heads","body"]
     # Logger (see metal/logging/logger.py for descriptions)
     "logger": True,
     "logger_config": {
@@ -246,14 +247,14 @@ class MultitaskTrainer(object):
                             task_to_train = tasks
                         if (
                             "freeze" in train_schedule_plan
-                            and train_schedule_plan["freeze"] in ["all", "body"]
+                            and train_schedule_plan["freeze"] in ["all", "body","heads"]
                             and max_epoch < epoch
                         ):
                             for task in tasks:
                                 freezed_tasks.append(task)
                     if (
                         "freeze" in train_schedule_plan
-                        and train_schedule_plan["freeze"] == "all"
+                        and train_schedule_plan["freeze"] in ["all","heads"]
                     ):
                         for task in freezed_tasks:
                             if task in task_to_train:
@@ -270,7 +271,11 @@ class MultitaskTrainer(object):
                 if freezed_tasks != [] and batch_num == 0:
                     print(f"Freezing {freezed_tasks} {train_schedule_plan['freeze']}")
                     for task_name in freezed_tasks:
-                        if task_name in model.input_modules:
+                        if (
+                            task_name in model.input_modules
+                            and train_schedule_plan["freeze"] != "heads"
+                        ):
+                            print("Freezing body...")
                             for p in get_base_module(model.input_modules[task_name]).parameters():
                                 p.requires_grad = False
                         if task_name in model.middle_modules:
@@ -281,13 +286,16 @@ class MultitaskTrainer(object):
                                 p.requires_grad = False
                         if (
                             task_name in model.head_modules
-                            and train_schedule_plan["freeze"] == "all"
+                            and train_schedule_plan["freeze"] in ["all","heads"]
                         ):
+                            print(f"Freezing {task_name} head...")
                             for p in get_base_module(model.head_modules[task_name]).parameters():
                                 p.requires_grad = False
 
                 if batch_num == 0:
                     print(f"Training tasks {labels_to_tasks}")
+                    for name, param in model.named_parameters():
+                        print(name, param.requires_grad)
 
                 batch_size = len(next(iter(Ys.values())))
                 batch_id = epoch * self.batches_per_epoch + batch_num
