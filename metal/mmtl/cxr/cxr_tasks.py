@@ -79,7 +79,7 @@ task_defaults = {
     "eval_finding":"ALL",
     "seed": None,
     "dl_kwargs": {
-        "pin_memory":False,
+        "pin_memory":True,
         "num_workers": 8,
         "batch_size": 16,
         "shuffle": True,  # Used only when split_prop is None; otherwise, use Sampler
@@ -103,7 +103,7 @@ task_defaults = {
     "use_slices": True,
     "use_slice_model": False,
     "slice_dict": {  # A map of the slices that apply to each task
-        "CXR8-DRAIN_PNEUMOTHORAX": ["chest_drain_cnn_neg"]
+        "CXR8-DRAIN_PNEUMOTHORAX": ["chest_drain_canny_seg_neg"]
     },
 }
 

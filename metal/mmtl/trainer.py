@@ -292,10 +292,13 @@ class MultitaskTrainer(object):
                             for p in get_base_module(model.head_modules[task_name]).parameters():
                                 p.requires_grad = False
 
+                elif batch_num == 0:
+                    print("Training all modules...")
+
                 if batch_num == 0:
                     print(f"Training tasks {labels_to_tasks}")
-                    for name, param in model.named_parameters():
-                        print(name, param.requires_grad)
+                    #for name, param in model.named_parameters():
+                    #    print(name, param.requires_grad)
 
                 batch_size = len(next(iter(Ys.values())))
                 batch_id = epoch * self.batches_per_epoch + batch_num
