@@ -237,35 +237,26 @@ class SliceRepModel(MetalModel):
         * A single base task + an arbitrary number of slice tasks (slice_head_type != None)
     """
 
-    def __init__(self, tasks, h_dim=None, **kwargs):
+    def __init__(self, tasks, attention_with_rep=False, **kwargs):
         validate_slice_tasks(tasks)
         super().__init__(tasks, **kwargs)
         self.base_task = [
             t for t in self.task_map.values() if t.slice_head_type is None
         ][0]
+        self.slice_pred_tasks = {
+            name: t for name, t in self.task_map.items() if t.slice_head_type == "pred"
+        }
         self.slice_ind_tasks = {
             name: t for name, t in self.task_map.items() if t.slice_head_type == "ind"
         }
 
-        # NOTE: the indicator heads still have the original output dim of the body
-        # but the base head might not (because they are initialized to different h_dim)
-        neck_dim = list(self.slice_ind_tasks.values())[0].head_module.module.in_features
+        neck_dim = self.base_task.head_module.module.in_features
         num_slices = len(self.slice_ind_tasks)
 
-        if h_dim:
-            # ensure that the head_modules are initialized for h_dim
-            assert self.base_task.head_module.module.in_features == h_dim
-            self.h_dim = h_dim
-        else:
-            self.h_dim = neck_dim
-
-        self.slice_reps = []
-        for k in range(num_slices):
-            layer = nn.Sequential(nn.Linear(neck_dim, self.h_dim), nn.ReLU())
-            if self.config["device"] >= 0:
-                if torch.cuda.is_available():
-                    layer.to(torch.device(f"cuda:{self.config['device']}"))
-            self.slice_reps.append(layer)
+        # show the body representation to the attention layer
+        self.attention_with_rep = attention_with_rep
+        if self.attention_with_rep:
+            self.attention_layer = nn.Linear(neck_dim + num_slices, num_slices)
 
     def forward_body(self, X):
         """ Makes a forward pass through the "body" of the network
@@ -300,7 +291,11 @@ class SliceRepModel(MetalModel):
 
         # A_weights is the [batch_size, num_slices] unormalized Tensor where
         # more positive values indicate more likely to be in the slice
-        A_weights = slice_inds
+        if self.attention_with_rep:
+            attention_input = torch.cat((slice_inds, body["data"]), dim=1)
+            A_weights = self.attention_layer(attention_input)
+        else:
+            A_weights = slice_inds
 
         return A_weights
 
@@ -310,15 +305,16 @@ class SliceRepModel(MetalModel):
 
         # Sort names to ensure that the representation is always
         # computed in the same order
-        # slice_pred_names = sorted(
-        #    [slice_task_name for slice_task_name in self.slice_pred_tasks.keys()]
-        # )
+        slice_pred_names = sorted(
+            [slice_task_name for slice_task_name in self.slice_pred_tasks.keys()]
+        )
 
         slice_ind_names = sorted(
             [slice_task_name for slice_task_name in self.slice_ind_tasks.keys()]
         )
 
         body = self.forward_body(X)
+        slice_pred_heads = self.forward_heads(body, slice_pred_names)
         slice_ind_heads = self.forward_heads(body, slice_ind_names)
 
         # [batch_size, num_slices] unnormalized attention weights.
@@ -331,21 +327,25 @@ class SliceRepModel(MetalModel):
 
         # slice_weights is the [num_slices, body_dim] concatenated tensor
         # representing linear transforms for the body into the slice prediction values
-        b = body["data"].shape[0]
-        slice_reps = [
-            layer.forward(body["data"]).view((b, -1, 1)) for layer in self.slice_reps
-        ]
-        slice_reps = torch.cat(slice_reps, dim=2)
+        slice_weights = torch.cat(
+            [
+                # TODO: sad! double module (DataParllel + MetalModule)
+                self.head_modules[t].module.module.weight
+                for t in slice_pred_names
+            ],
+            dim=0,
+        )
 
         # we reweight the linear mappings `slice_weights` by the
         # attention scores `A` and use this to reweight the base representation
-        reweighted_rep = torch.sum(A.view((b, 1, -1)) * slice_reps, -1)
+        reweighted_rep = (A @ slice_weights) * body["data"]
 
         # finally, forward through original task head with reweighted representation
         body["data"] = reweighted_rep
 
         # compute losses for individual slices + reweighted Y_head
         output = self.forward_heads(body, [self.base_task.name])
+        output.update(slice_pred_heads)
         output.update(slice_ind_heads)
         return output
 
