@@ -15,7 +15,7 @@ model_defaults = {
     "verbose": True,
     "fp16": False,
     "model_weights": None,  # the path to a saved checkpoint to initialize with
-    "slice_model": False,  # if True, use SliceModel
+    "model_type": None,  # if slice_model, slice_rep_model, None for naive model
     # whether to delete model source model head weights while loading existing weights
     "delete_heads": False,
 }

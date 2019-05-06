@@ -101,9 +101,11 @@ task_defaults = {
     "tasks": None,  # Comma-sep task list e.g. QNLI,QQP
     # Slicing
     "use_slices": True,
-    "use_slice_model": False,
+    "model_type":None,
     "slice_dict": {  # A map of the slices that apply to each task
-        "CXR8-DRAIN_PNEUMOTHORAX": ["chest_drain_canny_seg_neg"]
+        # chest_Drain_canny_seg_neg
+        # chest_drain_cnn_neg
+        "CXR8-DRAIN_PNEUMOTHORAX": ["chest_drain_cnn_neg"]
     },
 }
 
@@ -290,7 +292,10 @@ def create_tasks_and_payloads(full_task_names, **kwargs):
             )
 
             if slice_names:
-                loss_multiplier = 1.0 / (2 * len(slice_names))
+                if config['model_type'] in ["slice_model"]:
+                    loss_multiplier = 1.0 / (2 * len(slice_names))
+                else:
+                    loss_multiplier = 1.0 / (len(slice_names))
                 for slice_name in slice_names:
                     if config["use_slices"]:
                         # TODO: update to add_slice_labels_and_tasks
@@ -300,7 +305,7 @@ def create_tasks_and_payloads(full_task_names, **kwargs):
                             tasks,
                             task,
                             slice_name,
-                            use_slice_model=config["use_slice_model"],
+                            model_type=config["model_type"],
                             loss_multiplier=loss_multiplier,
                             add_task=True,
                         )
@@ -311,35 +316,18 @@ def create_tasks_and_payloads(full_task_names, **kwargs):
 # IN PROGRESS: ADD THSLICE TASKS LIKE IN
 # https://github.com/HazyResearch/metal/blob/mmtl_slicing/metal/mmtl/notebooks/Slicing.ipynb
 def add_slice_labels_and_tasks(
-    pay, tsks, tsk, slice_nm, use_slice_model=False, loss_multiplier=1.0, add_task=True
+    pay, tsks, tsk, slice_nm, model_type=None, loss_multiplier=1.0, add_task=True
 ):
     datast = pay.data_loader.dataset
     task_nm = tsk.name
     slice_labels = create_slice_labels(
         datast, base_task_name=task_nm, slice_name=slice_nm
     )
-
-    # Converting to torch
-    # for k,v in slice_labels.items():
-    #    v = torch.tensor(v)
-    #    if v.dim()<2:
-    #        v = v[:,None]
-    # slice_labels[k] = v
-
-    #   slice_labels = {k:torch.tensor(v) for k,v in slice_labels.items()}
-
-    # torch.Tensor(slice_labels)
-
-    # if slice_labels.dim()<2:
-    #     slice_labels = slice_labels[:,None]
-
-    # Adjusting for type
-    # if slice_labels.dim()<2:
-    #    slice_labels = slice_labels[:,None]
-
     # Changing which labelsets added based on model used
-    if use_slice_model:
+    if model_type in ["slice_model"]:
         slice_head_types = ["ind", "pred"]
+    elif model_type in ["slice_rep_model"]:
+        slice_head_types = ["ind"]
     else:
         slice_head_types = ["pred"]
 
@@ -363,20 +351,6 @@ def add_slice_labels_and_tasks(
         pay.add_label_set(
             slice_task_name, labelset_slice_name, slice_labels[slice_head_type]
         )
-
-
-# def get_slice_labels(pay, task_nm, slice_nm):
-#    datast = pay.data_loader.dataset
-#    slice_labels = create_slice_labels(
-#                        datast, base_task_name=task_nm, slice_name=slice_nm
-#                        )
-#    slice_labels = torch.Tensor(slice_labels)
-#    if slice_labels.dim()<2:
-#        slice_labels = slice_labels[:,None]
-
-#    labelset_slice_name=f"{task_nm}:{slice_nm}"
-#    pay.add_label_set(labelset_slice_name, labelset_slice_name,
-#                        label_list = slice_labels)
 
 
 def get_attention_module(config, neck_dim):

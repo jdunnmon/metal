@@ -18,7 +18,7 @@ from metal.mmtl.cxr.cxr_tasks import (
     task_defaults,
 )
 from metal.mmtl.metal_model import MetalModel, model_defaults
-from metal.mmtl.slicing.slice_model import SliceModel
+from metal.mmtl.slicing.slice_model import SliceModel, SliceRepModel
 from metal.mmtl.slicing.tasks import convert_to_slicing_tasks
 from metal.mmtl.trainer import MultitaskTrainer, trainer_defaults
 from metal.utils import add_flags_from_config, recursive_merge_dicts
@@ -128,9 +128,10 @@ if __name__ == "__main__":
     task_names = [task_name for task_name in args.tasks.split(",")]
 
     # Adding slices if needed for slice model
-    if model_config["slice_model"]:
+    model_type =  model_config["model_type"]
+    if model_type:
         # Ensuring we get correct labelsets
-        task_config["use_slice_model"] = True
+        task_config["model_type"] = model_type
 
         # Adding BASE to slice dict for SliceModel
         for k in task_config["slice_dict"]:
@@ -146,11 +147,15 @@ if __name__ == "__main__":
     tasks, payloads = create_tasks_and_payloads(task_names, **task_config)
 
     model_config["verbose"] = False
-    if model_config["slice_model"]:
-        print("Initializing SliceModel...")
+    if model_type:
         base_task = [t for t in tasks if t.name == base_task_name][0]
         tasks = convert_to_slicing_tasks(tasks)
-        model = SliceModel(tasks, base_task=base_task, **model_config)
+        if model_type == "slice_model":
+            print("Initializing SliceModel...")
+            model = SliceModel(tasks, base_task=base_task, **model_config)
+        elif model_type == "slice_rep_model":
+            print("Initializing SliceRepModel...")
+            model = SliceRepModel(tasks, base_task=base_task, **model_config)
     else:
         print("Initializing MetalModel...")
         model = MetalModel(tasks, **model_config)
