@@ -37,7 +37,7 @@ def chest_drain_canny_seg_neg(dataset: Dataset) -> dict:
     return slice_dict
 
 
-def create_slice_labels(dataset, base_task_name, slice_name, verbose=False):
+def create_slice_labels(dataset, base_task_name, slice_name, base_pos_only=False, verbose=False):
     """Returns a label set masked to include only those labels in the specified slice"""
     # TODO: break this out into more modular pieces one we have multiple slices
     # Uses typed function annotatinos to figure out which way to evaluate the slice
@@ -64,7 +64,16 @@ def create_slice_labels(dataset, base_task_name, slice_name, verbose=False):
     # Making y_slice
     # Y_slice = Y_base.clone().masked_fill_(slice_indicators == 0, 0)
 
-    Y_slice = [label * indicator for label, indicator in zip(Y_base, slice_indicators)]
+    # Removing negative indicators
+    if base_pos_only:
+        print(f"Using positives only for slice {base_task_name}:{slice_name}")
+        slice_indicators = [int(label==1) * indicator for label, indicator in zip(Y_base, slice_indicators)] 
+
+    # Making y_slice
+    # Y_slice = Y_base.clone().masked_fill_(slice_indicators == 0, 0)
+    
+    Y_slice = [label * indicator for label, indicator in zip(Y_base, slice_indicators)]    
+    
     Y_slice = np.array(Y_slice)
     # Y_slice_masked = torch.tensor(Y_slice_masked)
 

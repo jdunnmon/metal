@@ -145,7 +145,7 @@ if __name__ == "__main__":
 
     # Getting tasks
     tasks, payloads = create_tasks_and_payloads(task_names, **task_config)
-
+   
     model_config["verbose"] = False
     if model_type:
         base_task = [t for t in tasks if t.name == base_task_name][0]
