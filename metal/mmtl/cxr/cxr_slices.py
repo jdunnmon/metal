@@ -1,4 +1,5 @@
 import os
+import logging
 
 import numpy as np
 import pandas as pd
@@ -7,6 +8,15 @@ from torch.utils.data import Dataset
 
 from metal.utils import convert_labels
 
+# Configure logger
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
+def flip_slice_indicator(lab):
+    if lab == 0:
+        return 1
+    elif lab == 1:
+        return 0
 
 def BASE(dataset, idx) -> bool:
     # Always returns True -- used to train a copy fo the base_labelset
@@ -15,7 +25,6 @@ def BASE(dataset, idx) -> bool:
 
 
 def chest_drain_cnn_neg(dataset: Dataset) -> dict:
-    # data_file = os.path.join(os.environ["CXRDATA"],'CXR8-DRAIN-SLICE-NEG',f"{dataset.split}.tsv")
     data_file = os.path.join(
         os.environ["CXRDATA"], "CXR8-DRAIN-SLICE-NEG-CNN-F1", f"{dataset.split}.tsv"
     )
@@ -24,6 +33,11 @@ def chest_drain_cnn_neg(dataset: Dataset) -> dict:
     values = [int(l) for l in slice_data["slice_label"].astype(int)]
     slice_dict = dict(zip(keys, values))
     return slice_dict
+
+def chest_drain_cnn_pos(dataset: Dataset) -> dict:
+    neg_slice_dict = chest_drain_cnn_neg(dataset)
+    pos_slice_dict = {k:flip_slice_indicator(v) for k,v in neg_slice_dict.items()}
+    return pos_slice_dict
 
 
 def chest_drain_canny_seg_neg(dataset: Dataset) -> dict:
@@ -66,7 +80,7 @@ def create_slice_labels(dataset, base_task_name, slice_name, base_pos_only=False
 
     # Removing negative indicators
     if base_pos_only:
-        print(f"Using positives only for slice {base_task_name}:{slice_name}")
+        logger.info(f"Using positives only for slice {base_task_name}:{slice_name}")
         slice_indicators = [int(label==1) * indicator for label, indicator in zip(Y_base, slice_indicators)] 
 
     # Making y_slice
@@ -83,7 +97,7 @@ def create_slice_labels(dataset, base_task_name, slice_name, base_pos_only=False
         if not any(Y_slice):
             warnings.warn("No examples were found to belong to slice {slice_name}")
         else:
-            print(f"Found {sum(slice_indicators)} examples in slice {slice_name}.")
+            logger.info(f"Found {sum(slice_indicators)} examples in slice {slice_name}.")
 
     categorical_indicator = convert_labels(
         torch.tensor(slice_indicators), "onezero", "categorical"

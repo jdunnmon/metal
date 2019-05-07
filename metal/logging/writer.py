@@ -1,5 +1,6 @@
 import copy
 import json
+import logging
 import os
 from collections import defaultdict
 from subprocess import check_output
@@ -7,6 +8,9 @@ from time import strftime
 
 from metal.utils import recursive_transform
 
+# Configure logger
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 class LogWriter(object):
     """Class for writing simple JSON logs at end of runs, with interface for
@@ -78,7 +82,7 @@ class LogWriter(object):
         """Dump log output to file"""
         log_path = os.path.join(self.log_subdir, "log.json")
         if self.verbose:
-            print(f"Writing log to {log_path}")
+            logger.info(f"Writing log to {log_path}")
         with open(log_path, "w") as f:
             json.dump(self.log_dict, f, indent=1)
 
@@ -86,7 +90,7 @@ class LogWriter(object):
         """Dump config dict to file"""
         config_path = os.path.join(self.log_subdir, f"{config_name}.json")
         if self.verbose:
-            print(f"Writing config to {config_path}")
+            logger.info(f"Writing config to {config_path}")
         with open(config_path, "w") as f:
             config = self._sanitize_config(config)
             json.dump(config, f, indent=1)
@@ -94,7 +98,7 @@ class LogWriter(object):
     def write_metrics(self, metrics, filename="metrics.json"):
         metrics_path = os.path.join(self.log_subdir, filename)
         if self.verbose:
-            print(f"Writing metrics to {metrics_path}")
+            logger.info(f"Writing metrics to {metrics_path}")
         with open(metrics_path, "w") as f:
             json.dump(metrics, f, indent=1)
 

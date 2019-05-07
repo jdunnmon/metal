@@ -1,6 +1,10 @@
+import logging
 import numpy as np
 import torch
 
+# Configure logger
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 class Payload(object):
     """A bundle of data_loaders...
@@ -69,7 +73,7 @@ class Payload(object):
                 f"Added label_set with {sum(active)}/{len(active)} labels for "
                 f"task {task_name} to payload {self.name}."
             )
-            print(msg)
+            logger.info(msg)
 
     def remove_label_set(self, label_name, verbose=True):
         self.data_loader.dataset.labels.pop(label_name)
@@ -77,7 +81,7 @@ class Payload(object):
         del self.labels_to_tasks[label_name]
 
         if verbose:
-            print(
+            logger.info(
                 f"Removed label_set {label_name} for task {task_name} from payload {self.name}."
             )
 
@@ -88,7 +92,7 @@ class Payload(object):
         if old_task != task_name:
             self.labels_to_tasks[label_name] = task_name
             if verbose:
-                print(
+                logger.info(
                     f"labelset '{label_name}' -> task '{self.labels_to_tasks[label_name]}' "
                     f"(originally, {old_task})."
                 )

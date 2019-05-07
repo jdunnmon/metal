@@ -1,4 +1,5 @@
 import copy
+import logging
 import os
 import pickle
 import random
@@ -21,6 +22,10 @@ from metal.mmtl.modules import get_base_module
 from metal.mmtl.mmtl_logger import Logger  # NOTE: we load special MTL logger
 from metal.mmtl.task_scheduler import ProportionalScheduler
 from metal.utils import recursive_merge_dicts, recursive_transform, set_seed
+
+# Configure logger
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 # Import tqdm_notebook if in Jupyter notebook
 try:
@@ -190,8 +195,8 @@ class MultitaskTrainer(object):
             [len(p.data_loader) * p.data_loader.batch_size for p in train_payloads]
         )
         if self.config["verbose"]:
-            print(f"Beginning train loop.")
-            print(
+            logger.info(f"Beginning train loop.")
+            logger.info(
                 f"Expecting a total of approximately {self.examples_per_epoch} "
                 f"examples and {self.batches_per_epoch} batches per epoch from "
                 f"{len(train_payloads)} payload(s) in the train split."
@@ -269,13 +274,13 @@ class MultitaskTrainer(object):
                         del labels_to_tasks[key]
 
                 if freezed_tasks != [] and batch_num == 0:
-                    print(f"Freezing {freezed_tasks} {train_schedule_plan['freeze']}")
+                    logger.info(f"Freezing {freezed_tasks} {train_schedule_plan['freeze']}")
                     for task_name in freezed_tasks:
                         if (
                             task_name in model.input_modules
                             and train_schedule_plan["freeze"] != "heads"
                         ):
-                            print("Freezing body...")
+                            logger.debug("Freezing body...")
                             for p in get_base_module(model.input_modules[task_name]).parameters():
                                 p.requires_grad = False
                         if task_name in model.middle_modules:
@@ -288,15 +293,15 @@ class MultitaskTrainer(object):
                             task_name in model.head_modules
                             and train_schedule_plan["freeze"] in ["all","heads"]
                         ):
-                            print(f"Freezing {task_name} head...")
+                            logger.debug(f"Freezing {task_name} head...")
                             for p in get_base_module(model.head_modules[task_name]).parameters():
                                 p.requires_grad = False
 
                 elif batch_num == 0:
-                    print("Training all modules...")
+                    logger.info("Training all modules...")
 
                 if batch_num == 0:
-                    print(f"Training tasks {labels_to_tasks}")
+                    logger.info(f"Training tasks {labels_to_tasks}")
                     #for name, param in model.named_parameters():
                     #    print(name, param.requires_grad)
 
@@ -386,7 +391,7 @@ class MultitaskTrainer(object):
 
         # Print final performance values
         if self.config["verbose"]:
-            print("Finished training")
+            logger.info("Finished training")
         # Calculate metrics for all splits if test_split=None
         test_split = self.config["metrics_config"]["test_split"]
         valid_split = self.config["metrics_config"]["valid_split"]
@@ -421,12 +426,12 @@ class MultitaskTrainer(object):
                                 self.writer.log_subdir, f"{task_name}_best_model.pth"
                             )
                             copy2(path_to_best, path_to_logs)
-            print("Final scores using task-specific checkpoints:")
+            logger.info("Final scores using task-specific checkpoints:")
             pprint(metrics_dict)
 
         # Clean up checkpoints
         if self.checkpointer and self.config["checkpoint_cleanup"]:
-            print("Cleaning checkpoints")
+            logger.info("Cleaning checkpoints")
             self.checkpointer.clean_up()
 
         # Write log if applicable
@@ -443,7 +448,7 @@ class MultitaskTrainer(object):
             # pickle and save the full model
             full_model_path = os.path.join(self.writer.log_subdir, "model.pkl")
             torch.save(model, full_model_path, pickle_module=dill)
-            print(f"Full model saved at {full_model_path}")
+            logger.info(f"Full model saved at {full_model_path}")
 
         return metrics_dict
 
@@ -883,7 +888,7 @@ class MultitaskTrainer(object):
                     self.lr_scheduler.step(score)
                     lr_new = optimizer_to_use.param_groups[0]["lr"]
                     if lr != lr_new:
-                        print(f"Updated lr from {lr} to {lr_new}")
+                        logger.info(f"Updated lr from {lr} to {lr_new}")
             # Iteration-based scheduler(s)
             else:
                 self.lr_scheduler.step()

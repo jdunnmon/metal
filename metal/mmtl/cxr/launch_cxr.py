@@ -24,10 +24,8 @@ from metal.mmtl.trainer import MultitaskTrainer, trainer_defaults
 from metal.utils import add_flags_from_config, recursive_merge_dicts
 
 faulthandler.enable()
-
-
-logging.basicConfig(level=logging.INFO)
-
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 def get_dir_name(models_dir):
     """Gets a directory to save the model.
@@ -127,6 +125,13 @@ if __name__ == "__main__":
     # Getting primary task names
     task_names = [task_name for task_name in args.tasks.split(",")]
 
+    # Updating slice dict:
+    slice_dict = json.loads(args.slice_dict) if args.slice_dict else {}
+    if task_config["use_slices"]: # equivalent to active_task_heads in mmtl_slicing branch
+        task_config.update({"slice_dict": slice_dict})
+    else:
+        task_config.update({"slice_dict": None})
+
     # Adding slices if needed for slice model
     model_type =  model_config["model_type"]
     if model_type:
@@ -145,19 +150,18 @@ if __name__ == "__main__":
 
     # Getting tasks
     tasks, payloads = create_tasks_and_payloads(task_names, **task_config)
-  
     model_config["verbose"] = False
     if model_type:
         base_task = [t for t in tasks if t.name == base_task_name][0]
         tasks = convert_to_slicing_tasks(tasks)
         if model_type == "slice_model":
-            print("Initializing SliceModel...")
+            logger.info("Initializing SliceModel...")
             model = SliceModel(tasks, base_task=base_task, **model_config)
         elif model_type == "slice_rep_model":
-            print("Initializing SliceRepModel...")
+            logger.info("Initializing SliceRepModel...")
             model = SliceRepModel(tasks, base_task=base_task, **model_config)
     else:
-        print("Initializing MetalModel...")
+        logger.info("Initializing MetalModel...")
         model = MetalModel(tasks, **model_config)
 
     if args.model_weights:
@@ -180,9 +184,9 @@ if __name__ == "__main__":
     )
 
     if trainer_config["verbose"]:
-        print(f"Task config:\n{task_config}")
-        print(f"Model config:\n{model_config}")
-        print(f"Trainer config:\n{trainer_config}")
+        logger.debug(f"Task config:\n{task_config}")
+        logger.debug(f"Model config:\n{model_config}")
+        logger.debug(f"Trainer config:\n{trainer_config}")
 
     # Overwrite run_dir to only use one checkpoint dir
     # if args.run_dir is None:
@@ -204,7 +208,7 @@ if __name__ == "__main__":
     if not args.slice_eval:
         trainer.train_model(model, payloads, train_schedule_plan=trainer_config['train_schedule_plan'])
     else:
-        print("Running slice evaluation only...")
+        logger.info("Running slice evaluation only...")
         # Writing output to log where model path was
         slice_subdir = "/".join(args.model_weights.split("/")[:-1])
         trainer.writer.log_subdir = slice_subdir
@@ -221,8 +225,15 @@ if __name__ == "__main__":
         slice_payload = copy.deepcopy(payloads[payload_ind])
         main_payload = copy.deepcopy(payloads[payload_ind])
         slice_output[split] = {}
+        slice_eval_dict = task_config["slice_dict"]
+        if "CXR8-DRAIN_PNEUMOTHORAX" not in slice_eval_dict.keys():
+            slice_eval_dict.update({"CXR8-DRAIN_PNEUMOTHORAX": ["chest_drain_cnn_neg"]})
+        elif "chest_drain_cnn_neg" not in slice_eval_dict["chest_drain_cnn_neg"]:
+            slice_eval_dict["chest_drain_cnn_neg"].append("chest_drain_cnn_neg")
+        else:
+            logger.info('Negative drain slice already in problem...')
         # Retargeting slices
-        for tsk, slices in task_config["slice_dict"].items():
+        for tsk, slices in slice_eval_dict.items():
             for slc in slices:
                 #if not task_config["use_slices"]:
                 if "{tsk}_slice:{slc}:pred" not in main_payload.labels_to_tasks:
@@ -238,20 +249,20 @@ if __name__ == "__main__":
         main_dict = model.score(main_payload)
         main_dict = {k: v for k, v in main_dict.items() if ":" in k}
         # Printing results
-        print(f"Evaluating slice performance on {split} split")
-        print("Using main task heads:")
-        print(main_dict)
+        logger.info(f"Evaluating slice performance on {split} split")
+        logger.info("Using main task heads:")
+        logger.info(main_dict)
         # Storing results
         slice_output[split]["MAIN"] = main_dict
         if task_config["use_slices"]:
             slc_dict = model.score(slice_payload)
             slc_dict = {k: v for k, v in slc_dict.items() if ":pred" in k}
-            print("Using slice task heads:")
-            print(slc_dict)
+            logger.info("Using slice task heads:")
+            logger.info(slc_dict)
             slice_output[split]["SLICE"] = slc_dict
 
     # Writing slice evaluation
     slice_metrics_path = os.path.join(trainer.writer.log_subdir, "slice_metrics.json")
-    print(f"Writing slice metrics to {slice_metrics_path}")
+    logger.info(f"Writing slice metrics to {slice_metrics_path}")
     with open(slice_metrics_path, "w") as f:
         json.dump(slice_output, f, indent=1)

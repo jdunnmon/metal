@@ -1,5 +1,6 @@
 import argparse
 import copy
+import logging
 import random
 import warnings
 from collections import defaultdict
@@ -200,7 +201,7 @@ def recursive_merge_dicts(x, y, misses="report", verbose=None):
                         msg = f"Overwriting {k}={x[k]} to {k}={v}"
                         x[k] = v
                     if verbose > 1 and k != "verbose":
-                        print(msg)
+                        logging.info(msg)
             else:
                 for kx, vx in x.items():
                     if isinstance(vx, dict):
@@ -212,11 +213,11 @@ def recursive_merge_dicts(x, y, misses="report", verbose=None):
                 if misses == "insert":
                     x[k] = v
                     if verbose > 1:
-                        print(f"Added {k}={v} from second dict to first")
+                        logging.info(f"Added {k}={v} from second dict to first")
                 elif misses == "exception":
                     raise ValueError(msg)
                 elif misses == "report":
-                    print(msg)
+                    logging.info(msg)
                 else:
                     pass
         return found
@@ -298,7 +299,7 @@ def add_flags_from_config(parser, config_dict):
             else:
                 parser.add_argument(f"--{param}", type=OrNone(default), default=default)
         except argparse.ArgumentError:
-            print(
+            logging.info(
                 f"Could not add flag for param {param} because it was already present."
             )
     return parser

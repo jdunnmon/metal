@@ -1,6 +1,7 @@
 import copy
 import os
 import warnings
+import logging
 from collections import defaultdict
 
 import dill
@@ -18,8 +19,6 @@ from metal.mmtl.cxr.cxr_modules import (
     TorchVisionEncoder,
 )
 
-# from metal.mmtl.auxiliary_tasks import SPACY_TAGS, auxiliary_task_functions
-# from metal.mmtl.chexnet.chexnet_metrics import acc_f1, matthews_corr, mse, pearson_spearman
 from metal.mmtl.cxr.cxr_slices import create_slice_labels
 from metal.mmtl.payload import Payload
 from metal.mmtl.scorer import Scorer
@@ -33,6 +32,10 @@ torch.multiprocessing.set_sharing_strategy("file_system")
 
 # Restoring default
 # torch.multiprocessing.set_sharing_strategy('file_descriptor')
+
+# Configure logger
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 
 MASTER_PAYLOAD_TASK_DICT = {
@@ -102,12 +105,12 @@ task_defaults = {
     # Slicing
     "use_slices": True,
     "model_type":None,
-    "slice_dict": {  # A map of the slices that apply to each task
+    "slice_dict":None, #{  # A map of the slices that apply to each task
         # chest_Drain_canny_seg_neg
         # chest_drain_cnn_neg
-        "CXR8-DRAIN_PNEUMOTHORAX": ["chest_drain_cnn_neg"]
-    },
-    "slice_pos_only":[]
+        #"CXR8-DRAIN_PNEUMOTHORAX": ["chest_drain_cnn_pos"]
+    #},
+    "slice_pos_only":[],
 }
 
 
@@ -118,7 +121,7 @@ def create_tasks_and_payloads(full_task_names, **kwargs):
 
     if config["seed"] is None:
         config["seed"] = np.random.randint(1e6)
-        print(f"Using random seed: {config['seed']}")
+        logger.info(f"Using random seed: {config['seed']}")
     set_seed(config["seed"])
 
     # share cnn encoder for all tasks
@@ -394,7 +397,7 @@ def create_cxr_datasets(
     seed=None,
 ):
     if verbose:
-        print(f"Loading {dataset_name} Dataset")
+        logger.info(f"Loading {dataset_name} Dataset")
 
     datasets = {}
     for split_name in splits:
@@ -405,11 +408,11 @@ def create_cxr_datasets(
             split = split_name
         # Getting all examples for val and test!
         if split_name != "train" and eval_finding:
-            print(f"Using eval finding {eval_finding}")
+            logging.debug(f"Using eval finding {eval_finding}")
             finding = eval_finding
             subsample = -1
         else:
-            print(f"Using train finding {finding}")
+            logger.info(f"Using train finding {finding}")
         datasets[split_name] = get_cxr_dataset(
             dataset_name,
             split,

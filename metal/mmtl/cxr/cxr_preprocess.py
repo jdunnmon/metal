@@ -1,8 +1,13 @@
 import codecs
+import logging
 import os
 import pathlib
 
 from torchvision import transforms
+
+# Configure logger
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 # Import tqdm_notebook if in Jupyter notebook
 try:
@@ -40,7 +45,7 @@ def transform_for_dataset(dataset_name, dataset_split, kwargs):
 
     # Getting resolution kwarg
     res = kwargs.get("res", 224)
-    print(f"Using resolution {res}...")
+    logger.debug(f"Using resolution {res}...")
 
     if "CXR8" in dataset_name:
         # use imagenet mean,std for normalization
@@ -71,7 +76,7 @@ def transform_for_dataset(dataset_name, dataset_split, kwargs):
         }
 
     else:
-        print("No transforms found for {dataset_name} dataset!")
+        logger.info("No transforms found for {dataset_name} dataset!")
 
     return data_transforms[dataset_split]
 
