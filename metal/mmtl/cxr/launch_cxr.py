@@ -145,7 +145,7 @@ if __name__ == "__main__":
 
     # Getting tasks
     tasks, payloads = create_tasks_and_payloads(task_names, **task_config)
-   
+  
     model_config["verbose"] = False
     if model_type:
         base_task = [t for t in tasks if t.name == base_task_name][0]
@@ -224,10 +224,14 @@ if __name__ == "__main__":
         # Retargeting slices
         for tsk, slices in task_config["slice_dict"].items():
             for slc in slices:
-                if not task_config["use_slices"]:
+                #if not task_config["use_slices"]:
+                if "{tsk}_slice:{slc}:pred" not in main_payload.labels_to_tasks:
                     tsk_obj = tasks[[t.name for t in tasks].index(tsk)]
                     add_slice_labels_and_tasks(
-                        main_payload, tasks, tsk_obj, slc, add_task=False
+                        main_payload, tasks, tsk_obj, slc, 
+                        base_pos_only=task_config['slice_pos_only'],
+                        add_task=False,
+                        pred_eval=True
                     )
                 main_payload._retarget_labelset(f"{tsk}_slice:{slc}:pred", tsk)
         # Scoring model
@@ -241,7 +245,7 @@ if __name__ == "__main__":
         slice_output[split]["MAIN"] = main_dict
         if task_config["use_slices"]:
             slc_dict = model.score(slice_payload)
-            slc_dict = {k: v for k, v in slc_dict.items() if ":" in k}
+            slc_dict = {k: v for k, v in slc_dict.items() if ":pred" in k}
             print("Using slice task heads:")
             print(slc_dict)
             slice_output[split]["SLICE"] = slc_dict

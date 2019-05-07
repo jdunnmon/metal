@@ -107,7 +107,7 @@ task_defaults = {
         # chest_drain_cnn_neg
         "CXR8-DRAIN_PNEUMOTHORAX": ["chest_drain_cnn_neg"]
     },
-    "slice_pos_only":["chest_drain_cnn_neg"]
+    "slice_pos_only":[]
 }
 
 
@@ -217,7 +217,7 @@ def create_tasks_and_payloads(full_task_names, **kwargs):
 
         # TODO: PUT IN OPTION TO POOL SAME TASK FOR DIFF SETS HERE?
 
-        task_metrics = ["f1", "roc-auc"]
+        task_metrics = ["f1", "roc-auc","accuracy"]
         if "PNEUMOTHORAX" in task_name:
             scorer = Scorer(standard_metrics=task_metrics)
             task = ClassificationTask(
@@ -319,7 +319,7 @@ def create_tasks_and_payloads(full_task_names, **kwargs):
 # IN PROGRESS: ADD THSLICE TASKS LIKE IN
 # https://github.com/HazyResearch/metal/blob/mmtl_slicing/metal/mmtl/notebooks/Slicing.ipynb
 def add_slice_labels_and_tasks(
-    pay, tsks, tsk, slice_nm, model_type=None, loss_multiplier=1.0, base_pos_only=False, add_task=True
+    pay, tsks, tsk, slice_nm, model_type=None, loss_multiplier=1.0, base_pos_only=False, add_task=True, pred_eval=False
 ):
     datast = pay.data_loader.dataset
     task_nm = tsk.name
@@ -327,6 +327,7 @@ def add_slice_labels_and_tasks(
         datast, base_task_name=task_nm, slice_name=slice_nm,
         base_pos_only=base_pos_only 
     )
+
     # Changing which labelsets added based on model used
     if model_type in ["slice_model"]:
         slice_head_types = ["ind", "pred"]
@@ -335,6 +336,8 @@ def add_slice_labels_and_tasks(
     else:
         slice_head_types = ["pred"]
 
+    if pred_eval:
+        slice_head_types = ["pred"]
     # Adding a labelset slice to the payload
     for slice_head_type in slice_head_types:
         slice_task_name = f"{task_nm}_slice:{slice_nm}:{slice_head_type}"
