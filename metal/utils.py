@@ -10,6 +10,9 @@ import torch
 from scipy.sparse import issparse
 from torch.utils.data import Dataset
 
+# Configure logger
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 class MetalDataset(Dataset):
     """A dataset that group each item in X with its label from Y
@@ -201,7 +204,7 @@ def recursive_merge_dicts(x, y, misses="report", verbose=None):
                         msg = f"Overwriting {k}={x[k]} to {k}={v}"
                         x[k] = v
                     if verbose > 1 and k != "verbose":
-                        logging.info(msg)
+                        logger.info(msg)
             else:
                 for kx, vx in x.items():
                     if isinstance(vx, dict):
@@ -213,11 +216,11 @@ def recursive_merge_dicts(x, y, misses="report", verbose=None):
                 if misses == "insert":
                     x[k] = v
                     if verbose > 1:
-                        logging.info(f"Added {k}={v} from second dict to first")
+                        logger.info(f"Added {k}={v} from second dict to first")
                 elif misses == "exception":
                     raise ValueError(msg)
                 elif misses == "report":
-                    logging.info(msg)
+                    logger.info(msg)
                 else:
                     pass
         return found
@@ -299,7 +302,7 @@ def add_flags_from_config(parser, config_dict):
             else:
                 parser.add_argument(f"--{param}", type=OrNone(default), default=default)
         except argparse.ArgumentError:
-            logging.info(
+            logger.info(
                 f"Could not add flag for param {param} because it was already present."
             )
     return parser

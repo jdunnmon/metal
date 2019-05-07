@@ -14,6 +14,9 @@ from tqdm import tqdm
 from metal.mmtl.cxr.cxr_preprocess import get_task_config
 from metal.utils import padded_tensor, set_seed
 
+# Configure logger
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 class CXR8Dataset(Dataset):
     """
@@ -58,7 +61,7 @@ class CXR8Dataset(Dataset):
             self.seed = 123
         else:
             self.seed = int(seed)
-        logging.info(f"Using dataset seed: {self.seed}")
+        logger.debug(f"Using dataset seed: {self.seed}")
 
         # can limit to sample, useful for testing
         # if fold == "train" or fold =="val": sample=500
@@ -117,7 +120,7 @@ class CXR8Dataset(Dataset):
             # Converting to metal format: 0 abstain, 2 negative
             label_vec[label_vec == 0] = 2
             if cls_upper in self.label_transform.keys():
-                logging.info(f"Transforming labels for {cls} class")
+                logger.info(f"Transforming labels for {cls} class")
                 label_vec = [self.label_transform[cls_upper](l) for l in label_vec]
             # label_set = torch.tensor(label_vec).int()
             # if label_set.dim()<2:

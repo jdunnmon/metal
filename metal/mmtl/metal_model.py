@@ -1,4 +1,5 @@
 import copy
+import logging
 import warnings
 from collections import defaultdict
 
@@ -8,6 +9,10 @@ import torch.nn as nn
 
 from metal.mmtl.modules import get_base_module
 from metal.utils import move_to_device, recursive_merge_dicts, set_seed
+
+# Configure logger
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 model_defaults = {
     "seed": None,
@@ -47,31 +52,31 @@ class MetalModel(nn.Module):
 
         # Load weights
         if self.config["model_weights"]:
-            print("Loading model weights...")
+            logger.info("Loading model weights...")
             self.load_weights(self.config["model_weights"])
 
         # Half precision
         if self.config["fp16"]:
-            print("metal_model.py: Using fp16")
+            logger.info("metal_model.py: Using fp16")
             self.half()
 
         # Move model to device now, then move data to device in forward() or calculate_loss()
         if self.config["device"] >= 0:
             if torch.cuda.is_available():
                 if self.config["verbose"]:
-                    print("Using GPU...")
+                    logger.info("Using GPU...")
                 self.to(torch.device(f"cuda:{self.config['device']}"))
             else:
                 if self.config["verbose"]:
-                    print("No cuda device available. Using cpu instead.")
+                    logger.info("No cuda device available. Using cpu instead.")
 
         # Show network
         if self.config["verbose"]:
-            print("\nNetwork architecture:")
-            print(self)
+            logger.info("\nNetwork architecture:")
+            logger.info(self)
             print()
             num_params = sum(p.numel() for p in self.parameters() if p.requires_grad)
-            print(f"Total number of parameters: {num_params}")
+            logger.info(f"Total number of parameters: {num_params}")
 
     def _build(self, tasks):
         """Iterates over tasks, adding their input_modules and head_modules"""
@@ -223,7 +228,7 @@ class MetalModel(nn.Module):
         try:
             self.load_state_dict(torch.load(model_path, map_location=device)["model"])
         except RuntimeError:
-            print("Your destination state dict has different keys for the update key.")
+            logger.info("Your destination state dict has different keys for the update key.")
             try:
                 source_state_dict = torch.load(model_path, map_location=device)["model"]
                 self.load_state_dict(source_state_dict, strict=False)

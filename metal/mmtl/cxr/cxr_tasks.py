@@ -36,6 +36,7 @@ torch.multiprocessing.set_sharing_strategy("file_system")
 # Configure logger
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
+logging.basicConfig(level=logging.INFO)
 
 
 MASTER_PAYLOAD_TASK_DICT = {
@@ -110,7 +111,7 @@ task_defaults = {
         # chest_drain_cnn_neg
         #"CXR8-DRAIN_PNEUMOTHORAX": ["chest_drain_cnn_pos"]
     #},
-    "slice_pos_only":[],
+    "slice_pos_only":["chest_drain_cnn_neg"],
 }
 
 
@@ -408,7 +409,7 @@ def create_cxr_datasets(
             split = split_name
         # Getting all examples for val and test!
         if split_name != "train" and eval_finding:
-            logging.debug(f"Using eval finding {eval_finding}")
+            logger.debug(f"Using eval finding {eval_finding}")
             finding = eval_finding
             subsample = -1
         else:

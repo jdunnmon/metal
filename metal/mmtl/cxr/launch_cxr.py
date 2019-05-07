@@ -24,6 +24,7 @@ from metal.mmtl.trainer import MultitaskTrainer, trainer_defaults
 from metal.utils import add_flags_from_config, recursive_merge_dicts
 
 faulthandler.enable()
+
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
@@ -231,7 +232,7 @@ if __name__ == "__main__":
         elif "chest_drain_cnn_neg" not in slice_eval_dict["chest_drain_cnn_neg"]:
             slice_eval_dict["chest_drain_cnn_neg"].append("chest_drain_cnn_neg")
         else:
-            logger.info('Negative drain slice already in problem...')
+            logger.info('Negative drain slice already in payload...')
         # Retargeting slices
         for tsk, slices in slice_eval_dict.items():
             for slc in slices:
