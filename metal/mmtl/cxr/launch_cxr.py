@@ -28,6 +28,8 @@ faulthandler.enable()
 # Setting up logger
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
+logging.basicConfig(level=logging.INFO,filename=f'logger_out/run_log_{strftime("%Y%m%d-%H%M%S")}')
+logging.getLogger().addHandler(logging.StreamHandler())
 
 # Overwrite defaults
 task_defaults["attention"] = False
@@ -141,6 +143,7 @@ def main(args):
        task_config_main_to_slice["slice_dict"]["CXR8-DRAIN_PNEUMOTHORAX"].append("chest_drain_cnn_neg")
     else:
         task_config_main_to_slice["slice_dict"].update({"CXR8-DRAIN_PNEUMOTHORAX": ["chest_drain_cnn_neg"]})
+    task_config_main_to_slice['slice_pos_only'] = ['NONE']
 
     task_config_main_to_slice["active_slice_heads"] = {
         # turn pred labelsets on, and use model's value for ind head

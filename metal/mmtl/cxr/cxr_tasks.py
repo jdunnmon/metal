@@ -36,8 +36,6 @@ torch.multiprocessing.set_sharing_strategy("file_system")
 # Configure logger
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
-logging.basicConfig(level=logging.INFO)
-
 
 MASTER_PAYLOAD_TASK_DICT = {
     "CXR8": [
@@ -111,7 +109,7 @@ task_defaults = {
         # chest_drain_cnn_neg
         #"CXR8-DRAIN_PNEUMOTHORAX": ["chest_drain_cnn_pos"]
     #},
-    "slice_pos_only":["chest_drain_cnn_neg"],
+    "slice_pos_only":[],
 }
 
 
