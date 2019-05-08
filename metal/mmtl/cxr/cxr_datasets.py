@@ -128,7 +128,7 @@ class CXR8Dataset(Dataset):
 
             label_set = np.array(label_vec).astype(int)
             if self.pooled:
-                self.labels[cls_uppper] = label_set
+                self.labels[cls_upper] = label_set
             else:
                 self.labels[f"{self.dataset_name}_{cls_upper}"] = label_set
 

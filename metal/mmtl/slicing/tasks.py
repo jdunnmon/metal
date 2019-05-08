@@ -1,4 +1,5 @@
 import copy
+import logging
 
 import torch
 import torch.nn as nn
@@ -10,6 +11,9 @@ from metal.mmtl.scorer import Scorer
 from metal.mmtl.task import ClassificationTask
 from metal.utils import convert_labels
 
+# Configure logger
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 def create_slice_task(base_task, slice_task_name, slice_head_type, loss_multiplier=1.0):
     """Creates a slice task identical to a base task but with different head params"""
@@ -34,7 +38,7 @@ def convert_to_slicing_tasks(tasks):
             # change all output_dims -> 1
             if isinstance(head_module, torch.nn.Linear):
                 if head_module.out_features != 1:
-                    print(
+                    logger.debug(
                         f"Modifying {t.name} out_features from {head_module.out_features} -> 1"
                     )
                     head_module = nn.Linear(head_module.in_features, 1)

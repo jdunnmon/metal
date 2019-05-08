@@ -104,7 +104,7 @@ task_defaults = {
     "auxiliary_loss_multiplier": 1.0,
     "tasks": None,  # Comma-sep task list e.g. QNLI,QQP
     # Slicing
-    "use_slices": True,
+    "active_slice_heads": None,
     "model_type":None,
     "slice_dict":None, #{  # A map of the slices that apply to each task
         # chest_Drain_canny_seg_neg
@@ -297,13 +297,8 @@ def create_tasks_and_payloads(full_task_names, **kwargs):
             )
 
             if slice_names:
-                if config['model_type'] in ["slice_model"]:
-                    loss_multiplier = 1.0 / (2 * len(slice_names))
-                else:
-                    loss_multiplier = 1.0 / (len(slice_names))
+                loss_multiplier = 1.0 / (len(slice_names))
                 for slice_name in slice_names:
-                    if config["use_slices"]:
-                        # TODO: update to add_slice_labels_and_tasks
                         slice_task_name = f"{task_name}:{slice_name}"
                         base_pos_only = slice_name in config["slice_pos_only"]
                         add_slice_labels_and_tasks(
@@ -311,7 +306,7 @@ def create_tasks_and_payloads(full_task_names, **kwargs):
                             tasks,
                             task,
                             slice_name,
-                            model_type=config["model_type"],
+                            active_slice_heads=config["active_slice_heads"],
                             loss_multiplier=loss_multiplier,
                             base_pos_only=base_pos_only,
                             add_task=True,
@@ -323,7 +318,7 @@ def create_tasks_and_payloads(full_task_names, **kwargs):
 # IN PROGRESS: ADD THSLICE TASKS LIKE IN
 # https://github.com/HazyResearch/metal/blob/mmtl_slicing/metal/mmtl/notebooks/Slicing.ipynb
 def add_slice_labels_and_tasks(
-    pay, tsks, tsk, slice_nm, model_type=None, loss_multiplier=1.0, base_pos_only=False, add_task=True, pred_eval=False
+    pay, tsks, tsk, slice_nm, active_slice_heads=None, loss_multiplier=1.0, base_pos_only=False, add_task=True, pred_eval=False
 ):
     datast = pay.data_loader.dataset
     task_nm = tsk.name
@@ -332,16 +327,8 @@ def add_slice_labels_and_tasks(
         base_pos_only=base_pos_only 
     )
 
-    # Changing which labelsets added based on model used
-    if model_type in ["slice_model"]:
-        slice_head_types = ["ind", "pred"]
-    elif model_type in ["slice_rep_model"]:
-        slice_head_types = ["ind"]
-    else:
-        slice_head_types = ["pred"]
+    slice_head_types = [k for k,v in active_slice_heads.items() if v]
 
-    if pred_eval:
-        slice_head_types = ["pred"]
     # Adding a labelset slice to the payload
     for slice_head_type in slice_head_types:
         slice_task_name = f"{task_nm}_slice:{slice_nm}:{slice_head_type}"

@@ -91,8 +91,8 @@ class Payload(object):
         old_task = self.labels_to_tasks[label_name]
         if old_task != task_name:
             self.labels_to_tasks[label_name] = task_name
-            if verbose:
-                logger.info(
+            if verbose and (task_name is not None):
+                logger.debug(
                     f"labelset '{label_name}' -> task '{self.labels_to_tasks[label_name]}' "
                     f"(originally, {old_task})."
                 )
