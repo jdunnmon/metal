@@ -1,6 +1,6 @@
 MODEL_TYPE=$1
 
-N_EPOCHS=2
+N_EPOCHS=10
 TASKS=CXR8-DRAIN_ALL
 BATCH_SIZE=16
 LR=0.0001
@@ -15,10 +15,10 @@ RES=224
 TEST_SPLIT=test
 PROGRESS_BAR=0
 SEED=1701
-NUM_WORKERS=6
+NUM_WORKERS=8
 LOG_EVERY=1.0
 CHECKPOINT_EVERY=1.0
-MODEL_TYPES=(hard_param soft_param soft_param_rep)
+MODEL_TYPES=(hard_param soft_param soft_param_rep, soft_param_ens)
 SLICE_DICT=("'{\"CXR8-DRAIN_PNEUMOTHORAX\":[\"chest_drain_cnn_pos\"]}'" \
 	    "'{\"CXR8-DRAIN_PNEUMOTHORAX\": [\"chest_drain_cnn_pos\"]}'" \
             "'{\"CXR8-DRAIN_PNEUMOTHORAX\": [\"chest_drain_cnn_neg\"]}'" \

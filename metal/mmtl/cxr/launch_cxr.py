@@ -18,7 +18,7 @@ from metal.mmtl.cxr.cxr_tasks import (
     task_defaults,
 )
 from metal.mmtl.metal_model import MetalModel, model_defaults
-from metal.mmtl.slicing.slice_model import SliceModel, SliceRepModel
+from metal.mmtl.slicing.slice_model import SliceModel, SliceRepModel, SliceEnsembleModel
 from metal.mmtl.slicing.tasks import convert_to_slicing_tasks
 from metal.mmtl.trainer import MultitaskTrainer, trainer_defaults
 from metal.utils import add_flags_from_config, recursive_merge_dicts
@@ -60,6 +60,11 @@ model_configs = {
         "model_class": SliceRepModel,
         "active_slice_heads": {"pred": False, "ind": True},
     },
+    "soft_param_ens": {
+        "model_class": SliceEnsembleModel,
+        "active_slice_heads": {"pred": True, "ind": True},
+    },
+    
 }
 
 def main(args):
@@ -99,7 +104,7 @@ def main(args):
         task_config.update({"slice_dict": None})
 
     # Adding BASE slices if needed for slice model
-    if args.model_type in ["soft_param", "soft_param_rep"]:
+    if args.model_type in ["soft_param", "soft_param_rep", "soft_param_ens"]:
         # Ensuring we get correct labelsets
         task_config["model_type"] = args.model_type
 

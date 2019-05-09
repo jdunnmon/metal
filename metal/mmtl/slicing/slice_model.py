@@ -331,3 +331,62 @@ class SliceRepModel(SliceModel):
         output.update(slice_ind_heads)
         output.update(pred_heads)
         return output
+                                          
+class SliceEnsembleModel(SliceModel):
+    """ Slice-aware version of MetalModel.
+    At the moment, only supports:
+        * Binary classification heads (with output_dim=1, breaking Metal convention)
+        * A single base task + an arbitrary number of slice tasks (slice_head_type != None)
+    """
+
+    def __init__(self, tasks, attention_with_rep=False, base_task=None, **kwargs):
+        validate_slice_tasks(tasks, base_task=base_task)
+        super().__init__(tasks, base_task=base_task, **kwargs)
+        
+        neck_dim = self.base_task.head_module.module.in_features
+        num_slices = len(self.slice_ind_tasks)
+
+    def forward(self, X, task_names):
+        """ Perform forward pass with slice-reweighted base representation through
+        the base_task head. """
+        # First, running through the non-sliced tasks
+        pred_names = sorted([task_name for task_name in self.pred_tasks.keys()])
+        pred_heads = super(SliceModel, self).forward(X, pred_names)
+                                          
+        # Sort names to ensure that the representation is always
+        # computed in the same order
+        slice_pred_names = sorted(
+            [slice_task_name for slice_task_name in self.slice_pred_tasks.keys()]
+        )
+
+        slice_ind_names = sorted(
+            [slice_task_name for slice_task_name in self.slice_ind_tasks.keys()]
+        )
+
+        body = self.forward_body(X)
+        slice_pred_heads = self.forward_heads(body, slice_pred_names)
+        slice_ind_heads = self.forward_heads(body, slice_ind_names)
+
+        slice_ind_scores = F.softmax(
+            torch.cat(
+                [slice_ind_heads[name]["data"] for name in slice_ind_names], dim=1
+            ),
+            dim=1,
+        )
+
+        slice_pred_scores = F.softmax(
+            torch.cat(
+                [slice_pred_heads[name]["data"] for name in slice_pred_names], dim=1
+            ),
+            dim=1,
+        )
+
+        # [batch_size, num_slices] unnormalized attention weights.
+        neck = torch.cat((slice_ind_scores, slice_pred_scores), dim=1)
+
+        base_task_neck = {"data": neck}
+        output = self.forward_heads(base_task_neck, [self.base_task.name])
+        output.update(slice_pred_heads)
+        output.update(slice_ind_heads)
+        output.update(pred_heads)
+        return output
