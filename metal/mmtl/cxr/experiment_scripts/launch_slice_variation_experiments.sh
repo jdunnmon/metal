@@ -42,8 +42,8 @@ do
 CMD="python -W ignore launch_cxr.py --tasks $TASKS --batch_size $BATCH_SIZE --n_epochs $N_EPOCHS --lr $LR --l2 $L2 --lr_scheduler $LR_SCHEDULER --pretrained $PRETRAINED --drop_rate $DROP_RATE --warmup_steps $WARMUP_STEPS --warmup_unit $WARMUP_UNIT --min_lr $MIN_LR --res $RES --test_split $TEST_SPLIT --progress_bar $PROGRESS_BAR --seed $SEED --num_workers $NUM_WORKERS --log_every $LOG_EVERY --checkpoint_every $CHECKPOINT_EVERY --model_type $MODEL_TYPE --run_name ${EXP_NAMES[$run]} --slice_dict ${SLICE_DICT[$run]} --slice_pos_only ${SLICE_POS_ONLY[$run]}"
 echo "Launching run $(($run+1)) with command:"
 echo $CMD
-sleep 10
-eval $CMD
+#sleep 10
+#eval $CMD
 done
 
 

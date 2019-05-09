@@ -6,9 +6,19 @@ from torch.nn import functional as F
 
 from metal.end_model import IdentityModule
 from metal.mmtl.metal_model import MetalModel
-from metal.mmtl.modules import unwrap_module
+from metal.mmtl.modules import unwrap_module, get_base_module, MetalModuleWrapper
 from metal.utils import move_to_device
 
+
+def validated_update(dict1, dict2):
+    """ Dict update that throws an error if a key collision occurs,
+        rather than silently overrwriting 
+    """
+
+    intersections = list(set(dict1.keys()).intersection(set(dict2.keys())))
+    if intersections:
+        raise ValueError('Update would overwrite existing dict keys')
+    dict1.update(dict2)
 
 def validate_slice_tasks(tasks, base_task=None):
     # validate slice head cardinality
@@ -96,7 +106,7 @@ class SliceModel(MetalModel):
         self.pred_tasks = {
             name: t
             for name, t in self.task_map.items()
-            if ((t.slice_head_type is None) and (t is not self.base_task))
+            if ((t.slice_head_type is None) and (t.name is not self.base_task.name))
         }
         self.slice_pred_tasks = {
             name: t for name, t in self.task_map.items() if t.slice_head_type == "pred"
@@ -112,6 +122,9 @@ class SliceModel(MetalModel):
         self.attention_with_rep = attention_with_rep
         if self.attention_with_rep:
             self.attention_layer = nn.Linear(neck_dim + num_slices, num_slices)
+
+        # Making 100% sure the base task is not in pred_tasks...
+        assert(self.base_task.name not in self.pred_tasks)
 
     def forward_body(self, X):
         """ Makes a forward pass through the "body" of the network
@@ -202,10 +215,10 @@ class SliceModel(MetalModel):
         body["data"] = reweighted_rep
 
         # compute losses for individual slices + reweighted Y_head
-        output = self.forward_heads(body, [self.base_task.name])
-        output.update(slice_pred_heads)
-        output.update(slice_ind_heads)
-        output.update(pred_heads)
+        output = pred_heads
+        validated_update(output,self.forward_heads(body, [self.base_task.name]))
+        validated_update(output,slice_pred_heads)
+        validated_update(output,slice_ind_heads)
         return output
 
     @torch.no_grad()
@@ -327,9 +340,9 @@ class SliceRepModel(SliceModel):
         body["data"] = reweighted_rep
 
         # compute losses for individual slices + reweighted Y_head
-        output = self.forward_heads(body, [self.base_task.name])
-        output.update(slice_ind_heads)
-        output.update(pred_heads)
+        output = pred_heads
+        validated_update(output, self.forward_heads(body, [self.base_task.name]))
+        validated_update(output, slice_ind_heads)
         return output
                                           
 class SliceEnsembleModel(SliceModel):
@@ -343,9 +356,18 @@ class SliceEnsembleModel(SliceModel):
         validate_slice_tasks(tasks, base_task=base_task)
         super().__init__(tasks, base_task=base_task, **kwargs)
         
-        neck_dim = self.base_task.head_module.module.in_features
-        num_slices = len(self.slice_ind_tasks)
-
+        num_slices = len(self.slice_ind_tasks)+len(self.slice_pred_tasks)
+        base_neck_dim = num_slices
+        
+        # Changing task head to take in predictions, not representation
+        base_task_module = get_base_module(self.head_modules[self.base_task.name])
+        self.head_modules[self.base_task.name] = nn.DataParallel(
+            MetalModuleWrapper( 
+                nn.Linear(
+                    num_slices,base_task_module.out_features)
+                )
+            )
+    
     def forward(self, X, task_names):
         """ Perform forward pass with slice-reweighted base representation through
         the base_task head. """
@@ -385,8 +407,9 @@ class SliceEnsembleModel(SliceModel):
         neck = torch.cat((slice_ind_scores, slice_pred_scores), dim=1)
 
         base_task_neck = {"data": neck}
-        output = self.forward_heads(base_task_neck, [self.base_task.name])
-        output.update(slice_pred_heads)
-        output.update(slice_ind_heads)
-        output.update(pred_heads)
+
+        output = pred_heads
+        validated_update(output, self.forward_heads(base_task_neck, [self.base_task.name]))
+        validated_update(output, slice_pred_heads)
+        validated_update(output, slice_ind_heads)
         return output
