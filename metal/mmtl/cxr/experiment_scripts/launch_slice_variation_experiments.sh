@@ -29,10 +29,10 @@ SLICE_POS_ONLY=("chest_drain_cnn_pos"\
 	  "chest_drain_cnn_neg" \
 	  "NONE"\
 	  )
-EXP_NAMES=("${MODEL_TYPE}_positive_drain_slice_cnn_all_classes"\
-	   "${MODEL_TYPE}_positive_drain_slice_cnn_pneumos_only"\
-	   "${MODEL_TYPE}_negative_drain_slice_cnn_all_classes"\
+EXP_NAMES=("${MODEL_TYPE}_positive_drain_slice_cnn_pneumos_only"\
+	   "${MODEL_TYPE}_positive_drain_slice_cnn_all_classes"\
 	   "${MODEL_TYPE}_negative_drain_slice_cnn_pneumos_only"\
+	   "${MODEL_TYPE}_negative_drain_slice_cnn_all_classes"\
 )
 
 NUM_RUNS=$((${#SLICE_DICT[@]}-1))
