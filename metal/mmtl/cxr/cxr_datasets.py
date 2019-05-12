@@ -38,8 +38,10 @@ class CXR8Dataset(Dataset):
         pooled=False,
         get_uid=False,
         slice_labels=None,
+        sample_dict=None,
         single_task=None,
         return_dict=True,
+        add_normal_col=False,
         label_transform={},
         seed=None,
     ):
@@ -51,7 +53,9 @@ class CXR8Dataset(Dataset):
         self.df = pd.read_csv(self.path_to_labels, sep="\t")
         self.df.columns = map(str.upper, self.df.columns)
         self.get_uid = get_uid
+        self.add_normal_col = add_normal_col
         self.labels = {}
+        self.sample_dict = sample_dict
         self.pooled = pooled
         self.single_task = single_task
         self.dataset_name = dataset_name
@@ -62,11 +66,56 @@ class CXR8Dataset(Dataset):
         else:
             self.seed = int(seed)
         logger.debug(f"Using dataset seed: {self.seed}")
+        
+        self.PRED_LABEL = [
+            "Atelectasis",
+            "Cardiomegaly",
+            "Effusion",
+            "Infiltration",
+            "Mass",
+            "Nodule",
+            "Pneumonia",
+            "Pneumothorax",
+            "Consolidation",
+            "Edema",
+            "Emphysema",
+            "Fibrosis",
+            "Pleural_Thickening",
+            "Hernia",
+        ]
 
         # can limit to sample, useful for testing
         # if fold == "train" or fold =="val": sample=500
         if subsample > 0 and subsample < len(self.df):
             self.df = self.df.sample(subsample, random_state=self.seed)
+            
+        if add_normal_col:
+            row_sums = self.df[[a.upper() for a in self.PRED_LABEL]].sum(axis=1)
+            logger.info("Adding normal column to dataset")
+            self.df['NORMAL'] = [int(a==0) for a in row_sums]
+            self.PRED_LABEL+=['Normal']
+            
+        classes = self.PRED_LABEL
+        if slice_labels is not None:
+            if isinstance(slice_labels, str):
+                slice_labels = [slice_labels]
+            classes = classes + slice_labels
+            
+        if sample_dict:
+            assert 'ALL' in self.sample_dict, "Sample dict must have key 'ALL'"
+            logger.info("Using pre-specified sampling dictionary")
+            df_adj = pd.DataFrame() #columns=self.df.keys()
+            for k in classes:
+                ky = k.upper()
+                #if ky == 'PNEUMOTHORAX':
+                #    import pdb; pdb.set_trace()
+                df_k = self.df.loc[self.df[ky]==1]
+                smp = self.sample_dict[ky] if ky in self.sample_dict else self.sample_dict['ALL']
+                smp = min(len(df_k),smp) if smp>0 else len(df_k)
+                df_k = df_k.sample(smp, random_state=self.seed)
+                df_adj = df_adj.append(df_k)
+            self.df = df_adj
+            self.df.drop_duplicates(keep="first", inplace=True)
 
         if (
             not finding == "ALL"
@@ -89,28 +138,6 @@ class CXR8Dataset(Dataset):
 
         self.uids = self.df["IMAGE INDEX"].tolist()
         self.df = self.df.set_index("IMAGE INDEX")
-        self.PRED_LABEL = [
-            "Atelectasis",
-            "Cardiomegaly",
-            "Effusion",
-            "Infiltration",
-            "Mass",
-            "Nodule",
-            "Pneumonia",
-            "Pneumothorax",
-            "Consolidation",
-            "Edema",
-            "Emphysema",
-            "Fibrosis",
-            "Pleural_Thickening",
-            "Hernia",
-        ]
-
-        classes = self.PRED_LABEL
-        if slice_labels is not None:
-            if isinstance(slice_labels, str):
-                slice_labels = [slice_labels]
-            classes = classes + slice_labels
 
         # Adding tasks and labels -- right now, we train all labels associated with
         # a given task!
@@ -335,6 +362,8 @@ def get_cxr_dataset(
     config["get_uid"] = kwargs.get("get_uid", False)
     config["return_dict"] = kwargs.get("return_dict", True)
     config["seed"] = kwargs.get("seed", None)
+    sample_dict=kwargs.get("sample_dict",None)
+    add_normal_col=kwargs.get("add_normal_col",False)
     dataset_class = DATASET_CLASS_DICT[dataset_name]
 
     return dataset_class(
@@ -348,5 +377,7 @@ def get_cxr_dataset(
         get_uid=config["get_uid"],
         dataset_name=dataset_name,
         return_dict=config["return_dict"],
+        sample_dict=sample_dict,
+        add_normal_col=add_normal_col,
         seed=config["seed"],
     )

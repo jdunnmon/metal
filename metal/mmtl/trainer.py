@@ -179,14 +179,19 @@ class MultitaskTrainer(object):
             self.config["seed"] = np.random.randint(1e6)
         set_seed(self.config["seed"])
 
-    def train_model(self, model, payloads, train_schedule_plan=None, **kwargs):
+    def train_model(self, model, payloads, train_schedule_plan=None, train_on_dev=False, **kwargs):
         # NOTE: misses="insert" so we can log extra metadata (e.g. num_parameters)
         # and eventually write to disk.
         self.config = recursive_merge_dicts(self.config, kwargs, misses="insert")
 
         self.task_names = [task_name for task_name in model.task_map]
         self.payload_names = [payload.name for payload in payloads]
-        train_payloads = [p for p in payloads if p.split == "train"]
+        if not train_on_dev:
+            logger.info("Training on training set...")
+            train_payloads = [p for p in payloads if p.split == "train"]
+        else:
+            logger.info("Training on dev set...")
+            train_payloads = [p for p in payloads if p.split == "valid"]
 
         # Calculate epoch statistics
         # NOTE: We calculate approximate count size using batch_size * num_batches
@@ -206,7 +211,11 @@ class MultitaskTrainer(object):
         self._check_metrics()
 
         # Set training components
-        self._set_writer()
+        if hasattr(self, "writer"):
+            logger.info("Using previously initialized log writer during training...")
+        else:
+            logger.info("Initializing new log writer...")
+            self._set_writer()
         self._set_logger()
         self._set_checkpointer(model)
         self._set_optimizer(model)

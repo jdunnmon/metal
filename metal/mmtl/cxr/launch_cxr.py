@@ -7,6 +7,8 @@ import datetime
 import json
 import logging
 import os
+import shutil
+import subprocess
 from time import strftime
 
 import numpy as np
@@ -28,8 +30,15 @@ faulthandler.enable()
 # Setting up logger
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
-logging.basicConfig(level=logging.INFO,filename=f'logger_out/run_log_{strftime("%Y%m%d-%H%M%S")}')
+logging_dir = 'terminal_logs'
+if not os.path.exists(logging_dir):
+    os.mkdir(logging_dir)
+logging_file = os.path.join(logging_dir, f'run_log_{strftime("%Y%m%d-%H%M%S")}')
+logging.basicConfig(level=logging.INFO,filename=logging_file)
 logging.getLogger().addHandler(logging.StreamHandler())
+
+# Getting git commit hash
+git_hash = subprocess.check_output(['git', 'rev-parse', 'HEAD']).strip().decode("utf-8")
 
 # Overwrite defaults
 task_defaults["attention"] = False
@@ -40,6 +49,7 @@ model_defaults["delete_heads"] = False
 trainer_defaults["checkpoint"] = True
 trainer_defaults["checkpoint_config"]["checkpoint_best"] = True
 trainer_defaults["writer"] = "tensorboard"
+trainer_defaults['commit_hash'] = git_hash
 
 # Model configs
 model_configs = {
@@ -66,6 +76,8 @@ model_configs = {
     },
     
 }
+
+git_hash = subprocess.check_output(['git', 'rev-parse', 'HEAD']).strip()
 
 def main(args):
     # Extract flags into their respective config files
@@ -169,9 +181,10 @@ def main(args):
         )
 
     # Option to validate with slices
-    if args.validate_on_slices:
-        print("Will compute validation scores for slices based on main head.")
-        payloads[1] = main_to_slice_payloads[1]
+    # ISSUE: ONLY ASSUMES ONE TASK!
+    #if args.validate_on_slices:
+    #    print("Will compute validation scores for slices based on main head.")
+    #    payloads[1] = main_to_slice_payloads[1]
 
     # Initializing model
     logger.info(f"Initializing {model_class.__name__}...")
@@ -187,7 +200,16 @@ def main(args):
                     },
                 "freeze": trainer_config["freeze"],
                 }
-                
+
+    # Updating sampler if appropriate
+    if task_config["train_sampler"] == "imbalanced_mmtl_sampler":
+        train_payloads = [p for p in payloads if p.data_loader.dataset.split is "train"]
+        active_tasks = [t.name for t in tasks]
+        if args.fine_tune is not None:
+            active_tasks = [a for a in active_tasks if a in args.fine_tune]
+        for p in train_payloads:
+            p.data_loader.sampler._set_weights_and_tasks(active_tasks)
+
     # add metadata to trainer_config that will be logged to disk
     trainer_config["n_parameters"] = sum(
         p.numel() for p in model.parameters() if p.requires_grad
@@ -251,6 +273,8 @@ def main(args):
     with open(slice_metrics_path, "w") as f:
         json.dump(slice_output, f, indent=1)
 
+    return trainer.writer.log_subdir
+
 def get_parser():
     parser = argparse.ArgumentParser(
             description="Train MetalModel on single or multiple tasks.", add_help=False
@@ -305,4 +329,5 @@ def get_parser():
 if __name__ == "__main__":
     parser = get_parser()
     args = parser.parse_args()
-    main(args) 
+    log_subdir = main(args) 
+    shutil.copy(logging_file, log_subdir)

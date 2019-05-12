@@ -18,6 +18,7 @@ from metal.mmtl.cxr.cxr_modules import (
     SoftAttentionModule,
     TorchVisionEncoder,
 )
+from metal.mmtl.cxr.utils.sampler import ImbalancedMMTLSampler
 
 from metal.mmtl.cxr.cxr_slices import create_slice_labels
 from metal.mmtl.payload import Payload
@@ -78,13 +79,16 @@ task_defaults = {
     "split_prop": None,
     "splits": ["train", "valid", "test"],
     "subsample": -1,
+    "sample_dict":None,
+    "add_normal_col":None,
     "eval_finding":"ALL",
     "seed": None,
+    "train_sampler": None,
     "dl_kwargs": {
         "pin_memory":True,
         "num_workers": 8,
         "batch_size": 16,
-        "shuffle": True,  # Used only when split_prop is None; otherwise, use Sampler
+        "sampler": None,  # Used only when split_prop is None; otherwise, use Sampler
     },
     "dataset_kwargs": {"transform_kwargs": {"res": 224}},
     # CNN
@@ -205,6 +209,8 @@ def create_tasks_and_payloads(full_task_names, **kwargs):
                 eval_finding=config["eval_finding"], 
                 verbose=True,
                 seed=config["seed"],
+                add_normal_col=config["add_normal_col"],
+                sample_dict=config["sample_dict"],
                 dataset_kwargs=dataset_kwargs,
             )
 
@@ -212,6 +218,7 @@ def create_tasks_and_payloads(full_task_names, **kwargs):
             data_loaders = create_cxr_dataloaders(
                 datasets,
                 dl_kwargs=dl_kwargs,
+                train_sampler=config["train_sampler"],
                 split_prop=config["split_prop"],
                 splits=config["splits"],
                 seed=config["seed"],
@@ -297,6 +304,7 @@ def create_tasks_and_payloads(full_task_names, **kwargs):
             if slice_names:
                 loss_multiplier = 1.0 / (len(slice_names))
                 for slice_name in slice_names:
+                        add_task=True if split == 'train' else False
                         slice_task_name = f"{task_name}:{slice_name}"
                         base_pos_only = slice_name in config["slice_pos_only"]
                         add_slice_labels_and_tasks(
@@ -307,7 +315,7 @@ def create_tasks_and_payloads(full_task_names, **kwargs):
                             active_slice_heads=config["active_slice_heads"],
                             loss_multiplier=loss_multiplier,
                             base_pos_only=base_pos_only,
-                            add_task=True,
+                            add_task=add_task,
                         )
 
     return tasks, payloads
@@ -378,6 +386,8 @@ def create_cxr_datasets(
     subsample=-1,
     verbose=True,
     dataset_kwargs={},
+    add_normal_col=False,
+    sample_dict={},
     get_uid=False,
     return_dict=True,
     seed=None,
@@ -392,13 +402,21 @@ def create_cxr_datasets(
             split = "dev"
         else:
             split = split_name
+        
         # Getting all examples for val and test!
         if split_name != "train" and eval_finding:
             logger.debug(f"Using eval finding {eval_finding}")
             finding = eval_finding
             subsample = -1
-        else:
+        elif split_name == "train":
             logger.info(f"Using train finding {finding}")
+                    
+        # Use sample dict for train only 
+        if split_name in ["train","valid"]:
+            sample_dict = sample_dict
+        else:
+            sample_dict = None
+        
         datasets[split_name] = get_cxr_dataset(
             dataset_name,
             split,
@@ -407,12 +425,14 @@ def create_cxr_datasets(
             get_uid=get_uid,
             return_dict=return_dict,
             seed=seed,
+            sample_dict=sample_dict,
+            add_normal_col=add_normal_col,
             **dataset_kwargs,
         )
     return datasets
 
 
-def create_cxr_dataloaders(datasets, dl_kwargs, split_prop, splits, seed=123):
+def create_cxr_dataloaders(datasets, dl_kwargs, split_prop, splits, seed=123, train_sampler=None, active_tasks=None):
     """ Initializes train/dev/test dataloaders given dataset_class"""
     dataloaders = {}
 
@@ -432,8 +452,20 @@ def create_cxr_dataloaders(datasets, dl_kwargs, split_prop, splits, seed=123):
             dl_kwargs = dl_kwargs
             if split_name != 'train':
                 dl_kwargs["shuffle"] = False
-            # if split_name == 'test':
-            #     dl_kwargs['num_workers'] = 0
+                dl_kwargs["sampler"] = None
+            else: 
+                if train_sampler is None:
+                    logger.info("Shuffling training split...")
+                    dl_kwargs["shuffle"] = True
+                    dl_kwargs["sampler"] = None
+                else:
+                    logger.info(f"Using {train_sampler} sampler for training split...")
+                    if train_sampler == "imbalanced_mmtl_sampler":
+                        ds = datasets[split_name]
+                        active_tasks = active_tasks
+                        sampler = ImbalancedMMTLSampler(ds, active_tasks) 
+                        dl_kwargs["sampler"] = sampler
+                        dl_kwargs["shuffle"] = None
             dataloaders[split_name] = datasets[split_name].get_dataloader(**dl_kwargs)
     return dataloaders
 
