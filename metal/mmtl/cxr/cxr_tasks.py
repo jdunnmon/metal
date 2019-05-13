@@ -79,7 +79,9 @@ task_defaults = {
     "split_prop": None,
     "splits": ["train", "valid", "test"],
     "subsample": -1,
-    "sample_dict":None,
+    # e.g. {"train_sample_dict":{'PNEUMOTHORAX':-1,'ALL':300},"valid_sample_dict"{'PNEUMOTHORAX':-1,'ALL':30}}
+    # Samples 'ALL' from rest of labels, number indicated for those indicated, all for -1
+    "sample_dict":None, 
     "add_normal_col":None,
     "eval_finding":"ALL",
     "seed": None,
@@ -387,7 +389,7 @@ def create_cxr_datasets(
     verbose=True,
     dataset_kwargs={},
     add_normal_col=False,
-    sample_dict={},
+    sample_dict=None,
     get_uid=False,
     return_dict=True,
     seed=None,
@@ -412,10 +414,11 @@ def create_cxr_datasets(
             logger.info(f"Using train finding {finding}")
                     
         # Use sample dict for train only 
-        if split_name in ["train","valid"]:
-            sample_dict = sample_dict
-        else:
-            sample_dict = None
+        if sample_dict:
+            if f"{split_name}_sample_dict" in sample_dict.keys():
+                sample_dict_arg = sample_dict[f"{split_name}_sample_dict"]
+            else:
+                sample_dict_arg = None
         
         datasets[split_name] = get_cxr_dataset(
             dataset_name,
@@ -425,7 +428,7 @@ def create_cxr_datasets(
             get_uid=get_uid,
             return_dict=return_dict,
             seed=seed,
-            sample_dict=sample_dict,
+            sample_dict=sample_dict_arg,
             add_normal_col=add_normal_col,
             **dataset_kwargs,
         )

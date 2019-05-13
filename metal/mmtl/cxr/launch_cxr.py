@@ -128,8 +128,10 @@ def main(args):
         assert len(task_config["slice_dict"].keys()) <= 1
     
 
-    # Getting tasks
+    # Getting tasks and ensuring no duplicates
     tasks, payloads = create_tasks_and_payloads(task_names, **task_config)
+    task_names = [t.name for t in tasks]
+    assert(len(task_names) == len(list(set(task_names))))
     model_config["verbose"] = False
 
     if args.model_type == "manual":
