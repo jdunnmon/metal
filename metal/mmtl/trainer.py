@@ -281,6 +281,8 @@ class MultitaskTrainer(object):
                             del_keys.append(key)
                     for key in del_keys:
                         del labels_to_tasks[key]
+                else:
+                    raise ValueError('No tasks to train.')
 
                 if freezed_tasks != [] and batch_num == 0:
                     logger.info(f"Freezing {freezed_tasks} {train_schedule_plan['freeze']}")

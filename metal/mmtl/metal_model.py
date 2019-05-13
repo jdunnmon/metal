@@ -221,19 +221,23 @@ class MetalModel(nn.Module):
 
     def load_weights(self, model_path, delete_heads=False):
         """Load model weights from checkpoint."""
+        # NOTE: returning missing, expected requires torch >=1.1
         if self.config["device"] >= 0:
             device = torch.device(f"cuda:{self.config['device']}")
         else:
             device = torch.device("cpu")
         try:
             self.load_state_dict(torch.load(model_path, map_location=device)["model"])
+            missing, expected = [], []
         except RuntimeError:
             logger.info("Your destination state dict has different keys for the update key.")
             try:
+                logger.info("Loading without strictness.")
                 source_state_dict = torch.load(model_path, map_location=device)["model"]
-                self.load_state_dict(source_state_dict, strict=False)
+                missing, unexpected = self.load_state_dict(source_state_dict, strict=False)
 
             except RuntimeError:
+                logger.info("Loading with slice heads deleted")
                 # use the slicing hack to delete existing heads
                 if self.config["delete_heads"]:
                     warnings.warn(
@@ -247,7 +251,9 @@ class MetalModel(nn.Module):
                             warnings.warn(msg)
                             del source_state_dict[module]
 
-                    self.load_state_dict(source_state_dict, strict=False)
+                    missing, unexpected = self.load_state_dict(source_state_dict, strict=False)
+                                  
+        return missing, unexpected
 
     def save_weights(self, model_path):
         """Saves weight in checkpoint directory"""
