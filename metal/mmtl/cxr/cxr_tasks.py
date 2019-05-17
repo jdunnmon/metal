@@ -18,7 +18,7 @@ from metal.mmtl.cxr.cxr_modules import (
     SoftAttentionModule,
     TorchVisionEncoder,
 )
-from metal.mmtl.cxr.utils.sampler import ImbalancedMMTLSampler
+from metal.mmtl.cxr.utils.sampler import ImbalancedMMTLSampler, ImbalancedDatasetSampler
 
 from metal.mmtl.cxr.cxr_slices import create_slice_labels
 from metal.mmtl.payload import Payload
@@ -112,6 +112,7 @@ task_defaults = {
     "tasks": None,  # Comma-sep task list e.g. QNLI,QQP
     # Slicing
     "active_slice_heads": None,
+    "load_pos_only":True,
     "model_type":None,
     "slice_dict":None, #{  # A map of the slices that apply to each task
         # chest_Drain_canny_seg_neg
@@ -179,7 +180,7 @@ def create_tasks_and_payloads(full_task_names, **kwargs):
         if config["pool_payload_tasks"]:
             payload_name = full_task_name.split("_")[0]
             dataset_name = payload_name
-            task_name = full_task_name.split("_")[1]
+            task_name = '_'.join(full_task_name.split("_")[1:])
             payload_finding = task_name
             if task_name not in auxiliary_task_dict.keys():
                 new_payload = f"{payload_name}_train" not in [p.name for p in payloads]
@@ -192,7 +193,7 @@ def create_tasks_and_payloads(full_task_names, **kwargs):
                 payload_finding = "ALL"
             else:
                 payload_name = full_task_name
-                payload_finding = full_task_name.split("_")[1]
+                payload_finding = '_'.join(full_task_name.split("_")[1:])
             task_name = full_task_name
             if task_name.split("_")[1] not in auxiliary_task_dict.keys():
                 new_payload = f"{payload_name}_train" not in [p.name for p in payloads]
@@ -216,6 +217,7 @@ def create_tasks_and_payloads(full_task_names, **kwargs):
                 seed=config["seed"],
                 add_normal_col=config["add_normal_col"],
                 sample_dict=config["sample_dict"],
+                load_pos_only = config["load_pos_only"],
                 dataset_kwargs=dataset_kwargs,
             )
 
@@ -394,6 +396,7 @@ def create_cxr_datasets(
     add_normal_col=False,
     sample_dict=None,
     get_uid=False,
+    load_pos_only=True,
     return_dict=True,
     seed=None,
 ):
@@ -435,6 +438,7 @@ def create_cxr_datasets(
             seed=seed,
             sample_dict=sample_dict_arg,
             add_normal_col=add_normal_col,
+            load_pos_only=load_pos_only,
             **dataset_kwargs,
         )
     return datasets
@@ -467,13 +471,22 @@ def create_cxr_dataloaders(datasets, dl_kwargs, split_prop, splits, seed=123, tr
                     dl_kwargs["shuffle"] = True
                     dl_kwargs["sampler"] = None
                 else:
-                    logger.info(f"Using {train_sampler} sampler for training split...")
                     if train_sampler == "imbalanced_mmtl_sampler":
+                        logger.info(f"Using {train_sampler} sampler for training split...")
                         ds = datasets[split_name]
                         active_tasks = active_tasks
                         sampler = ImbalancedMMTLSampler(ds, active_tasks) 
                         dl_kwargs["sampler"] = sampler
                         dl_kwargs["shuffle"] = None
+                    elif train_sampler == "imbalanced_sampler":
+                        logger.info(f"Using {train_sampler} sampler for training split...")
+                        ds = datasets[split_name]
+                        active_tasks = active_tasks
+                        sampler = ImbalancedDatasetSampler(ds) 
+                        dl_kwargs["sampler"] = sampler
+                        dl_kwargs["shuffle"] = None
+                    else:
+                        raise ValueError("Unrecognized sampler type.")
             dataloaders[split_name] = datasets[split_name].get_dataloader(**dl_kwargs)
     return dataloaders
 

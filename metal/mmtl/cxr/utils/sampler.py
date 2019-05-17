@@ -20,6 +20,9 @@ class ImbalancedDatasetSampler(torch.utils.data.sampler.Sampler):
         # if num_samples is not provided,
         # draw `len(indices)` samples in each iteration
         self.num_samples = len(self.indices) if num_samples is None else num_samples
+        
+        # dataset
+        self.dataset = dataset
 
         # distribution of classes in the dataset
         label_to_count = {}
@@ -42,6 +45,11 @@ class ImbalancedDatasetSampler(torch.utils.data.sampler.Sampler):
             return dataset.train_labels[idx].item()
         elif dataset_type is torchvision.datasets.ImageFolder:
             return dataset.imgs[idx][1]
+        elif dataset_type is metal.mmtl.cxr.cxr_datasets.CXR8Dataset:
+            ky = list(self.dataset.labels.keys())
+            assert len(ky) == 1, "Only usable for one label!"
+            lab = self.dataset.labels[ky[0]][idx]
+            return lab
         else:
             raise NotImplementedError
 

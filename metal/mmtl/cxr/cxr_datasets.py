@@ -43,6 +43,7 @@ class CXR8Dataset(Dataset):
         single_task=None,
         return_dict=True,
         add_normal_col=False,
+        load_pos_only=True,
         label_transform={},
         seed=None,
     ):
@@ -62,6 +63,8 @@ class CXR8Dataset(Dataset):
         self.dataset_name = dataset_name
         self.return_dict = return_dict
         self.label_transform = label_transform
+        self.load_pos_only = load_pos_only
+        
         if seed is None:
             self.seed = 123
         else:
@@ -129,25 +132,6 @@ class CXR8Dataset(Dataset):
             self.df = df_adj
             self.df.drop_duplicates(keep="first", inplace=True)
 
-        if (
-            not finding == "ALL"
-        ):  # can filter for positive findings of the kind described; useful for evaluation
-            if finding in self.df.columns:
-                if len(self.df[self.df[finding] == 1]) > 0:
-                    self.df = self.df[self.df[finding] == 1]
-                else:
-                    raise ValueError(
-                        "No positive cases exist for "
-                        + LABEL
-                        + ", returning all unfiltered cases"
-                    )
-            else:
-                raise ValueError(
-                    "cannot filter on finding "
-                    + finding
-                    + " as not in data - please check spelling"
-                )
-
         if "CXR8" in self.dataset_name:
             self.uids = self.df["IMAGE INDEX"].tolist()
             self.df = self.df.set_index("IMAGE INDEX")
@@ -155,13 +139,31 @@ class CXR8Dataset(Dataset):
             self.uids = self.df["IMG_PATH"].tolist()
             self.df = self.df.set_index("IMG_PATH")  
         else:
-            raise ValueError("Unrecognized dataset name")            
+            raise ValueError("Unrecognized dataset name")
+            
+        if (
+            (not finding == "ALL") 
+        ):  # can filter for positive findings of the kind described; useful for evaluation   
+            if finding in self.df.columns:
+                if self.load_pos_only:
+                    if len(self.df[self.df[finding] == 1]) > 0:
+                        self.df = self.df[self.df[finding] == 1]
+                    else:
+                        raise ValueError(
+                            "No positive cases exist for "
+                            + LABEL
+                            + ", returning all unfiltered cases"
+                        )
+                else:
+                    classes = [finding]
+                    self.df = self.df[[finding]]
 
         # Adding tasks and labels -- right now, we train all labels associated with
         # a given task!
         for cls in classes:
             cls_upper = cls.upper().strip()
-            label_vec = (self.df[cls_upper].astype(int) > 0).astype(int)
+            # ASSUMING BINARY TASKS! MUST CHANGE OTHERWISE!
+            label_vec = (self.df[cls_upper].astype(int) == 1).astype(int)
             # Converting to metal format: 0 abstain, 2 negative
             label_vec[label_vec == 0] = 2
             if cls_upper in self.label_transform.keys():
@@ -376,8 +378,8 @@ def get_cxr_dataset(
     # MODIFY THIS TO GET THE RIGHT LOCATIONS FOR EACH!!
     if "_" in dataset_name:
         dataset_name = dataset_name.split("_")[0]
-    if "_" in finding:
-        finding = finding.split("_")[1]
+    #if "_" in finding:
+    #    finding = '_'.join(finding.split("_")[1:])
     transform_kwargs = kwargs["transform_kwargs"]
     config = get_task_config(dataset_name, split, subsample, finding, transform_kwargs)
     config["get_uid"] = kwargs.get("get_uid", False)
@@ -385,6 +387,7 @@ def get_cxr_dataset(
     config["seed"] = kwargs.get("seed", None)
     sample_dict=kwargs.get("sample_dict",None)
     add_normal_col=kwargs.get("add_normal_col",False)
+    load_pos_only=kwargs.get("load_pos_only",True)
     dataset_class = DATASET_CLASS_DICT[dataset_name]
 
     return dataset_class(
@@ -400,5 +403,6 @@ def get_cxr_dataset(
         return_dict=config["return_dict"],
         sample_dict=sample_dict,
         add_normal_col=add_normal_col,
+        load_pos_only=load_pos_only,
         seed=config["seed"],
     )
