@@ -18,7 +18,11 @@ def f(ii, orig_path, save_path, list_imgs):
     pth = list_imgs[ii]
     old_pth = join(orig_path,pth)
     new_pth = join(save_path,pth)
-    create_new_img(old_pth,new_pth)
+    try:
+        create_new_img(old_pth,new_pth)
+    except:
+        # Copying over ones that don't preprocess correctly
+        copyfile(old_pth,new_pth)
 
 def create_new_img(old_img_path,new_img_path):
     """

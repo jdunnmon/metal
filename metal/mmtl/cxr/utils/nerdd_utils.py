@@ -3,7 +3,7 @@ import numpy as np
 import h5py
 from PIL import Image as pil_image
 
-def array_to_img(x, scale=False):
+def array_to_img(x, scale=True):
     """Converts a 3D Numpy array to a PIL Image instance.
      Arguments:
          x: Input Numpy array.

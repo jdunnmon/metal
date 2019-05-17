@@ -96,7 +96,7 @@ task_defaults = {
         "batch_size": 16,
         "sampler": None,  # Used only when split_prop is None; otherwise, use Sampler
     },
-    "dataset_kwargs": {"transform_kwargs": {"res": 224}},
+    "dataset_kwargs": {"transform_kwargs": {"res": 224, "heq":True}},
     # CNN
     "cnn_model": "densenet121",
     "cnn_kwargs": {"freeze_cnn": False, "pretrained": True, "drop_rate": 0.2},
