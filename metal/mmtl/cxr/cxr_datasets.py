@@ -12,6 +12,7 @@ from torch.utils.data.sampler import Sampler, SubsetRandomSampler
 from tqdm import tqdm
 
 from metal.mmtl.cxr.cxr_preprocess import get_task_config
+from metal.mmtl.cxr.utils.nerdd_utils import default_xray_loader_h5
 from metal.utils import padded_tensor, set_seed
 
 # Configure logger
@@ -67,22 +68,35 @@ class CXR8Dataset(Dataset):
             self.seed = int(seed)
         logger.debug(f"Using dataset seed: {self.seed}")
         
-        self.PRED_LABEL = [
-            "Atelectasis",
-            "Cardiomegaly",
-            "Effusion",
-            "Infiltration",
-            "Mass",
-            "Nodule",
-            "Pneumonia",
-            "Pneumothorax",
-            "Consolidation",
-            "Edema",
-            "Emphysema",
-            "Fibrosis",
-            "Pleural_Thickening",
-            "Hernia",
-        ]
+        if "CXR8" in self.dataset_name:
+            self.PRED_LABEL = [
+                "Atelectasis",
+                "Cardiomegaly",
+                "Effusion",
+                "Infiltration",
+                "Mass",
+                "Nodule",
+                "Pneumonia",
+                "Pneumothorax",
+                "Consolidation",
+                "Edema",
+                "Emphysema",
+                "Fibrosis",
+                "Pleural_Thickening",
+                "Hernia",
+            ]
+            self.label_transform = {}
+        elif "NERDD" in self.dataset_name:
+            self.PRED_LABEL = [
+                "chest_tube",
+                "nerdd_label",
+            ]
+            self.label_transform = {
+                "NERDD_LABEL": lambda x: 1 if x>1 else 2
+            }
+            
+        else:
+            raise ValueError("Unrecognized dataset name")
 
         # can limit to sample, useful for testing
         # if fold == "train" or fold =="val": sample=500
@@ -107,8 +121,6 @@ class CXR8Dataset(Dataset):
             df_adj = pd.DataFrame() #columns=self.df.keys()
             for k in classes:
                 ky = k.upper()
-                #if ky == 'PNEUMOTHORAX':
-                #    import pdb; pdb.set_trace()
                 df_k = self.df.loc[self.df[ky]==1]
                 smp = self.sample_dict[ky] if ky in self.sample_dict else self.sample_dict['ALL']
                 smp = min(len(df_k),smp) if smp>0 else len(df_k)
@@ -136,8 +148,14 @@ class CXR8Dataset(Dataset):
                     + " as not in data - please check spelling"
                 )
 
-        self.uids = self.df["IMAGE INDEX"].tolist()
-        self.df = self.df.set_index("IMAGE INDEX")
+        if "CXR8" in self.dataset_name:
+            self.uids = self.df["IMAGE INDEX"].tolist()
+            self.df = self.df.set_index("IMAGE INDEX")
+        elif "NERDD" in self.dataset_name:
+            self.uids = self.df["IMG_PATH"].tolist()
+            self.df = self.df.set_index("IMG_PATH")  
+        else:
+            raise ValueError("Unrecognized dataset name")            
 
         # Adding tasks and labels -- right now, we train all labels associated with
         # a given task!
@@ -147,7 +165,7 @@ class CXR8Dataset(Dataset):
             # Converting to metal format: 0 abstain, 2 negative
             label_vec[label_vec == 0] = 2
             if cls_upper in self.label_transform.keys():
-                logger.info(f"Transforming labels for {cls} class")
+                logger.info(f"Transforming labels for {cls.upper()} class")
                 label_vec = [self.label_transform[cls_upper](l) for l in label_vec]
             # label_set = torch.tensor(label_vec).int()
             # if label_set.dim()<2:
@@ -161,8 +179,12 @@ class CXR8Dataset(Dataset):
 
     def __getitem__(self, idx):
 
-        image = Image.open(os.path.join(self.path_to_images, self.df.index[idx]))
-        image = image.convert("RGB")
+        if "CXR8" in self.dataset_name:
+            image = Image.open(os.path.join(self.path_to_images, self.df.index[idx]))
+            image = image.convert("RGB")
+        elif "NERDD" in self.dataset_name:
+            # Note: conversion to RGB handled under the hood
+            image = default_xray_loader_h5(os.path.join(self.path_to_images, self.df.index[idx]))            
 
         if self.transform:
             image = self.transform(image)
@@ -344,12 +366,11 @@ class CXR8Dataset(Dataset):
         return Ys
 
 
-DATASET_CLASS_DICT = {"CXR8": CXR8Dataset, "CXR8-DRAIN": CXR8Dataset}
+DATASET_CLASS_DICT = {"CXR8": CXR8Dataset, "CXR8-DRAIN": CXR8Dataset, "NERDD-CHEST-TUBE": CXR8Dataset}
 
 
 def get_cxr_dataset(
-    dataset_name, split, subsample=None, finding="ALL", pooled=False, **kwargs
-):
+    dataset_name, split, subsample=None, finding="ALL", pooled=False, **kwargs):
     """ Create and returns specified cxr dataset based on image path."""
 
     # MODIFY THIS TO GET THE RIGHT LOCATIONS FOR EACH!!

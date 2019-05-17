@@ -4,6 +4,7 @@ import os
 import pathlib
 
 from torchvision import transforms
+from metal.mmtl.cxr.torchsample.torchsample.transforms import *
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -47,7 +48,7 @@ def transform_for_dataset(dataset_name, dataset_split, kwargs):
     res = kwargs.get("res", 224)
     logger.debug(f"Using resolution {res}...")
 
-    if "CXR8" in dataset_name:
+    if ("CXR8" in dataset_name) and "HEQ" not in dataset_name:
         # use imagenet mean,std for normalization
         mean = [0.485, 0.456, 0.406]
         std = [0.229, 0.224, 0.225]
@@ -56,7 +57,7 @@ def transform_for_dataset(dataset_name, dataset_split, kwargs):
         data_transforms = {
             "train": transforms.Compose(
                 [
-                    transforms.RandomHorizontalFlip(),
+                    #transforms.RandomHorizontalFlip(),
                     transforms.Scale(res),
                     # because scale doesn't always give 224 x 224, this ensures 224 x
                     # 224
@@ -74,7 +75,30 @@ def transform_for_dataset(dataset_name, dataset_split, kwargs):
                 ]
             ),
         }
+    elif "NERDD" in dataset_name:
+            
+        #defining transformations
+        std = StdNormalize()
 
+        data_transforms = {
+            "train": transforms.Compose([\
+                #transforms.Scale(res),
+                # because scale doesn't always give 224 x 224, this ensures 224 x
+                # 224
+                #transforms.CenterCrop(res),
+                #transforms.ToTensor(),                                    
+                #std,
+                ]),
+            "val": transforms.Compose([\
+                #transforms.Scale(res),
+                # because scale doesn't always give 224 x 224, this ensures 224 x
+                # 224
+                #transforms.CenterCrop(res),
+                #transforms.ToTensor(),                                    
+                #std,
+                ]),
+            }
+    
     else:
         logger.info("No transforms found for {dataset_name} dataset!")
 
@@ -95,3 +119,13 @@ def get_task_config(dataset_name, split, subsample, finding, transform_kwargs):
             "finding": finding,
             "label_type": int,
         }
+    elif "NERDD" in dataset_name:
+        return {
+            "path_to_labels": tsv_path_for_dataset(dataset_name, split),
+            "path_to_images": os.environ["NERDDIMAGES"],
+            "transform": transform_for_dataset(dataset_name, split, transform_kwargs),
+            "subsample": subsample,
+            "finding": finding,
+            "label_type": int,
+        }       
+        

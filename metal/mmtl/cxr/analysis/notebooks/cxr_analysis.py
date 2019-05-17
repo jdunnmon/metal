@@ -43,6 +43,7 @@ def get_cxr14_rocs_from_log(
     plot_metric="roc-auc",
     load_slices=True,
     head=None,
+    eval_split='test'
 ):
     # Use existing results if already there
     if col_name in chexnet_results.columns:
@@ -55,7 +56,8 @@ def get_cxr14_rocs_from_log(
     for ky, val in metrics_dict.items():
 
         # Current format: task, split, labelset, metric
-        task, split, labelset, metric = ky.split("/")
+        task, payload, labelset, metric = ky.split("/")
+        split = payload.split('_')[-1]
 
         # Current task format: DATASET_TASKNAME
         task_name = get_task_name(task)
@@ -71,6 +73,7 @@ def get_cxr14_rocs_from_log(
                 [a in task_name.split(":")[0].upper() for a in chexnet_results.index]
             )
             and (metric == plot_metric)
+            and split == eval_split
         ):
             output_dict[labelset_name.upper()] = val
 

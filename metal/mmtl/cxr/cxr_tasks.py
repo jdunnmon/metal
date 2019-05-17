@@ -71,6 +71,10 @@ MASTER_PAYLOAD_TASK_DICT = {
         "PLEURAL_THICKENING",
         "HERNIA",
     ],
+    "NERDD-CHEST-TUBE": [
+        "CHEST_TUBE",
+        "NERDD_LABEL"
+    ]
 }
 
 task_defaults = {
@@ -101,7 +105,6 @@ task_defaults = {
         "nonlinearity": "tanh",  # tanh, sigmoid currently accepted
     },
     # Auxiliary Tasks and Primary Tasks
-    # EYE TRACKING LOSS IS A SLICE, NOT AN AUX!
     "auxiliary_task_dict": {  # A map of each aux. task to the primary task it applies to
         "AUTOENCODE": ["CXR8"]
     },
@@ -418,6 +421,8 @@ def create_cxr_datasets(
             if f"{split_name}_sample_dict" in sample_dict.keys():
                 sample_dict_arg = sample_dict[f"{split_name}_sample_dict"]
             else:
+                sample_dict_arg = None
+        else:
                 sample_dict_arg = None
         
         datasets[split_name] = get_cxr_dataset(
