@@ -214,6 +214,7 @@ def create_tasks_and_payloads(full_task_names, **kwargs):
                 finding=payload_finding,
                 eval_finding=config["eval_finding"], 
                 verbose=True,
+                get_uid=True,
                 seed=config["seed"],
                 add_normal_col=config["add_normal_col"],
                 sample_dict=config["sample_dict"],
@@ -233,7 +234,7 @@ def create_tasks_and_payloads(full_task_names, **kwargs):
 
         # TODO: PUT IN OPTION TO POOL SAME TASK FOR DIFF SETS HERE?
 
-        task_metrics = ["f1", "roc-auc","accuracy"]
+        task_metrics = ["f1", "roc-auc","accuracy", "precision", "recall"]
         if "PNEUMOTHORAX" in task_name:
             scorer = Scorer(standard_metrics=task_metrics)
             task = ClassificationTask(

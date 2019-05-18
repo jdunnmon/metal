@@ -23,7 +23,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--rcdwd_dir",
         "-rcd",
-        help="Directory containing modified NIH data (with drains) from reproduce-chexnet",
+        help="Directory containing original NIH data in csv form",
         required=True,
     )
     parser.add_argument(
@@ -58,11 +58,12 @@ if __name__ == "__main__":
     dfs = read_reproduce_chexnet_data(args.rcdwd_dir)
 
     # Reading in pneumo subset from LOR
-    pneumo_subset = pd.read_csv(args.drain_file)
-
+    sep = ',' if args.drain_file.endswith('csv') else '\t'
+    pneumo_subset = pd.read_csv(args.drain_file, sep=sep)
+    
     # Identifying drains
-    drains = pneumo_subset[pneumo_subset["drain"] == 1]
-    no_drains = pneumo_subset[pneumo_subset["drain"] == 0]
+    drains = pneumo_subset[pneumo_subset["drain"].astype(int) == 1]
+    no_drains = pneumo_subset[pneumo_subset["drain"].astype(int) == 0]
 
     # Getting pneumos from dev set
     df_split = copy.deepcopy(dfs[split])
@@ -85,7 +86,7 @@ if __name__ == "__main__":
     if not args.only_slice:
         df_split["drains"][
             df_split["Image Index"].isin(split_no_pneumos["Image Index"])
-        ] = 1
+        ] = not args.positive
 
     # Creating dataframe
     slice_df = pd.DataFrame(

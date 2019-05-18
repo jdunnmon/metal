@@ -356,6 +356,7 @@ class MetalModel(nn.Module):
             target_labels: if not None, return labels for only the specified label_sets;
                 otherwise, return all label_sets
             return_preds: if True, also include preds in return values
+            return_meta: list of metadata fields in dataset dict to return
             max_examples: if > 0, predict for a maximum of this many examples
 
         # TODO: consider returning Ys as tensors instead of lists (padded if necessary)

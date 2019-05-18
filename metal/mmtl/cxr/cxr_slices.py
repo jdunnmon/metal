@@ -23,6 +23,15 @@ def BASE(dataset, idx) -> bool:
     # NOTE/HACK: MUST be named "BASE" to match task definition
     return True
 
+def chest_drain_nerdd_cnn_pos(dataset:Dataset) -> dict:
+    data_file = os.path.join(
+        os.environ["CXRDATA"], "CXR8-ORIG-DRAIN-SLICE-POS", f"{dataset.split}.tsv"
+    )
+    slice_data = pd.read_csv(data_file, sep="\t")
+    keys = slice_data["data_index"].tolist()
+    values = [int(l) for l in slice_data["slice_label"].astype(int)]
+    slice_dict = dict(zip(keys, values))
+    return slice_dict
 
 def chest_drain_cnn_neg(dataset: Dataset) -> dict:
     data_file = os.path.join(
