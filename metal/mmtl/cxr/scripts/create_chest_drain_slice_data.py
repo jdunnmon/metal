@@ -45,7 +45,8 @@ if __name__ == "__main__":
     dfs = read_reproduce_chexnet_data(args.rcdwd_dir)
 
     # Reading in pneumo subset from LOR
-    pneumo_subset = pd.read_csv(args.drain_file)
+    sep = ',' if args.drain_file.endswith('.csv') else '\t'
+    pneumo_subset = pd.read_csv(args.drain_file, sep=sep)
 
     # Identifying drains
     drains = pneumo_subset[pneumo_subset["drain"] == 1]

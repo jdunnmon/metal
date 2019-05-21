@@ -50,7 +50,7 @@ def get_lung_segmentation(x):
     im_shape = xx.shape
     xx = xx[None, :, :, None]
 
-    model_name = "../../../../../../lung-segmentation-2d/trained_model.hdf5"
+    model_name = "/lfs/1/jdunnmon/repos/lung-segmentation-2d/trained_model.hdf5"
     UNet = load_model(model_name)
 
     img = exposure.rescale_intensity(np.squeeze(xx), out_range=(0, 1))
@@ -94,7 +94,7 @@ class CannySegSliceModule(nn.Module):
         self.slope_cutoff = slope_cutoff
 
         # Loading unet
-        model_name = "../../../../../../lung-segmentation-2d/trained_model.hdf5"
+        model_name = "/lfs/1/jdunnmon/repos/lung-segmentation-2d/trained_model.hdf5"
         self.UNet = load_model(model_name)
 
     def canny_edge_detection(self, x, kwargs):
