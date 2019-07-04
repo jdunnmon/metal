@@ -35,8 +35,15 @@ em_default_config = {
         "loss_fn_reduction": "mean",
         # Display
         "progress_bar": False,
+        "clobber_dl": False,
         # Dataloader
-        "data_loader_config": {"batch_size": 32, "num_workers": 1, "shuffle": True},
+        "clobber_dl": False,
+        "data_loader_config": {
+            "batch_size": 32,
+            "num_workers": 1,
+            "shuffle": True,
+            "pin_memory": True,
+        },
         # Loss weights
         "loss_weights": None,
         # Train Loop

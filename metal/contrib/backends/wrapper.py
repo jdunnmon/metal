@@ -25,6 +25,7 @@ class SnorkelDataset(Dataset):
         word_dict=None,
         pretrained_word_dict=None,
         max_seq_len=125,
+        tagging=True,
     ):
         """
         Assumes a Snorkel database that is fully instantiated with:
@@ -60,6 +61,7 @@ class SnorkelDataset(Dataset):
         self.class_type = candidate_subclass(*candidate_def)
         self.cardinality = len(candidate_def[-1])
         self.split = split
+        self.tagging = tagging
         self.max_seq_len = max_seq_len
 
         # create markup sequences and labels
@@ -72,7 +74,8 @@ class SnorkelDataset(Dataset):
             .order_by(Candidate.id)
             .all()
         )
-        self.X = [self._mark_entities(x, markers) for x in self.X]
+        if self.tagging:
+            self.X = [self._mark_entities(x, markers) for x in self.X]
 
         # initalize vocabulary
         self.word_dict = (
@@ -108,6 +111,7 @@ class SnorkelDataset(Dataset):
         use_lfs=(0, 0, 0),
         pretrained_word_dict=None,
         max_seq_len=125,
+        tagging=True,
     ):
         """
         Create train/dev/test splits (mapped to split numbers)
@@ -133,6 +137,7 @@ class SnorkelDataset(Dataset):
             use_lfs=use_lfs[train],
             pretrained_word_dict=pretrained_word_dict,
             max_seq_len=max_seq_len,
+            tagging=tagging,
         )
         return (
             train_set,
@@ -143,6 +148,7 @@ class SnorkelDataset(Dataset):
                 split=dev,
                 use_lfs=use_lfs[dev],
                 max_seq_len=max_seq_len,
+                tagging=tagging,
             ),
             cls(
                 conn_str,
@@ -151,6 +157,7 @@ class SnorkelDataset(Dataset):
                 split=test,
                 use_lfs=use_lfs[test],
                 max_seq_len=max_seq_len,
+                tagging=tagging,
             ),
         )
 

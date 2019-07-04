@@ -398,8 +398,10 @@ class Classifier(nn.Module):
             **kwargs,
             "pin_memory": self.config["device"] != "cpu",
         }
+
+        clobber_dl = self.config["train_config"].get("clobber_dl", False)
         # Return data as DataLoader
-        if isinstance(data, DataLoader):
+        if isinstance(data, DataLoader) or clobber_dl:
             return data
         elif isinstance(data, Dataset):
             return DataLoader(data, **config)
