@@ -1,3 +1,5 @@
+import torch
+
 em_default_config = {
     # GENERAL
     "seed": None,
@@ -45,7 +47,7 @@ em_default_config = {
             "pin_memory": True,
         },
         # Loss weights
-        "loss_weights": None,
+        "loss_weights": None,  # [0.5, 0.5],
         # Train Loop
         "n_epochs": 10,
         # 'grad_clip': 0.0,
