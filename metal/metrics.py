@@ -210,6 +210,8 @@ def metric_score(gold, pred, metric, probs=None, **kwargs):
     elif metric == "roc-auc":
         if probs is None:
             raise ValueError("ROC-AUC score requries the predicted probs.")
+        if "ignore_in_pred" in kwargs.keys():
+            del kwargs["ignore_in_pred"]
         return roc_auc_score(gold, probs, **kwargs)
 
     else:

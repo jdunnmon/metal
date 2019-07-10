@@ -110,6 +110,7 @@ class Classifier(nn.Module):
         break_ties="random",
         verbose=True,
         print_confusion_matrix=True,
+        ignore_in_pred=[],
         **kwargs,
     ):
         """Scores the predictive performance of the Classifier on all tasks
@@ -140,7 +141,14 @@ class Classifier(nn.Module):
         metric_list = metric if isinstance(metric, list) else [metric]
         scores = []
         for metric in metric_list:
-            score = metric_score(Y, Y_p, metric, probs=Y_s, ignore_in_gold=[0])
+            score = metric_score(
+                Y,
+                Y_p,
+                metric,
+                probs=Y_s,
+                ignore_in_gold=[0],
+                ignore_in_pred=ignore_in_pred,
+            )
             scores.append(score)
             if verbose:
                 print(f"{metric.capitalize()}: {score:.3f}")
